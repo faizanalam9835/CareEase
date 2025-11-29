@@ -11,6 +11,9 @@ const authRoutes = require('./routes/authRoutes')
 const userRoutes = require('./routes/userRoutes')
 const patientRoutes = require('./routes/patientRoutes')
 const prescriptionRoutes = require('./routes/prescriptionRoutes')
+const appointmentRoutes = require('./routes/appointmentRoutes')
+const pharmacyRoutes = require('./routes/pharmacyRoutes')
+const billingRoutes = require('./routes/billingRoutes')
 
 // Import routes
 const hospitalRoutes = require('./routes/hospitalRoutes')
@@ -35,6 +38,10 @@ app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/patients', patientRoutes);
 app.use('/api/prescriptions', prescriptionRoutes)
+app.use('/api/appointments', appointmentRoutes)
+app.use('/api/pharmacy', pharmacyRoutes)
+app.use('/api/billing', billingRoutes)
+
 // Basic route to test server
 app.get('/', (req, res) => {
   res.send(`🚀 HMS Server is running! Tenant ID: ${req.tenantId || 'Not Set'}`);

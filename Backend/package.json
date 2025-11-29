@@ -16,6 +16,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
+    "razorpay": "^2.9.6",
     "redis": "^5.10.0",
     "resend": "^6.5.2",
     "uuid": "^13.0.0",

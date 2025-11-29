@@ -1,15 +1,10 @@
-// routes/hospitalRoutes.js
-import express from "express";
-import { registerHospitalTenant , verify } from "../controllers/hospitalController.js";
-import { validate } from "../middleware/validate.js";
-import { hospitalSchema, hospitalVerifySchema } from "../validation/hospitalSchema.js";
+const express = require('express');
+const { registerHospital, verifyHospital, getAllHospitals } = require('../controllers/hospitalController');
 
 const router = express.Router();
 
-// Register hospital
-router.post("/register", validate(hospitalSchema), registerHospitalTenant);
+router.post('/register', registerHospital);
+router.get('/verify/:token', verifyHospital);
+router.get('/all', getAllHospitals); // Super admin ke liye
 
-// Verify hospital code (optional)
-router.post("/verify", validate(hospitalVerifySchema), verify);
-
-export default router;
+module.exports = router; 

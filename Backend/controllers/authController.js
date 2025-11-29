@@ -1,28 +1,98 @@
-import * as AuthService from "../services/authService.js";
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const { generateToken, generateRefreshToken } = require('../utils/generateToken');
 
-export const register = async (req, res) => {
+// User Login
+const loginUser = async (req, res) => {
   try {
-    const user = await AuthService.registerUser(req.body);
-    res.json({ message: "User registered. Please verify email.", userId: user._id });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    const { email, password, tenantId } = req.body;
+
+    // Validation
+    if (!email || !password || !tenantId) {
+      return res.status(400).json({
+        error: 'Email, password and tenant ID are required'
+      });
+    }
+
+    // Find user by email and tenantId
+    const user = await User.findOne({ 
+      email: email.toLowerCase(),
+      tenantId 
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        error: 'Invalid email or password'
+      });
+    }
+
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        error: 'Invalid email or password'
+      });
+    }
+
+    // Check user status
+    if (user.status !== 'ACTIVE') {
+      return res.status(401).json({
+        error: 'Your account is not active. Please contact administrator.'
+      });
+    }
+
+    // Generate tokens
+    const token = generateToken(user._id, user.tenantId, user.roles, user.department); // ✅ DEPARTMENT ADDED
+    const refreshToken = generateRefreshToken(user._id);
+
+    // User details (password exclude karo)
+    const userDetails = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      department: user.department, // ✅ DEPARTMENT INCLUDED
+      roles: user.roles,
+      tenantId: user.tenantId,
+      status: user.status
+    };
+
+    res.json({
+      message: 'Login successful!',
+      token,
+      refreshToken,
+      user: userDetails,
+      expiresIn: '1 hour'
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      error: 'Internal server error during login'
+    });
   }
 };
 
-export const verify = async (req, res) => {
+// Get Current User Profile
+const getCurrentUser = async (req, res) => {
   try {
-    const user = await AuthService.verifyUser(req.body.email, req.body.code);
-    res.json({ message: "Email verified successfully" });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
+    const user = await User.findById(req.user.userId).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    res.json({
+      user
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
   }
 };
 
-export const login = async (req, res) => {
-  try {
-    const data = await AuthService.loginUser(req.body.email, req.body.password);
-    res.json(data);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
+module.exports = { loginUser, getCurrentUser };

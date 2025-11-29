@@ -1,31 +1,42 @@
-import mongoose from "mongoose";
-import { v4 as uuidv4 } from "uuid";
+const mongoose = require('mongoose');
 
-const hospitalTenantSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true, trim: true },
-    address: { type: String, required: true },
-    city: String,
-    state: String,
-    country: { type: String, default: "India" },
-    phone: String,
-    email: { type: String, required: true },
-    licenseNumber: { type: String, required: true, unique: true },
-
-    tenantId: { type: String, default: () => uuidv4(), unique: true },
-
-    status: {
-      type: String,
-      enum: ["PENDING", "VERIFIED", "ACTIVE", "SUSPENDED", "INACTIVE"],
-      default: "PENDING",
-    },
-
-    adminEmail: { type: String }, // auto-generated
-    adminPassword: { type: String }, // hashed password
-    verificationCode: String,
-    verificationExpiry: Date,
+const hospitalSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
   },
-  { timestamps: true }
-);
+  address: {
+    type: String,
+    required: true
+  },
+  contactNumber: {
+    type: String,
+    required: true
+  },
+  adminEmail: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  licenseNumber: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  tenantId: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  status: {
+    type: String,
+    enum: ['PENDING', 'VERIFIED', 'ACTIVE', 'SUSPENDED', 'INACTIVE'],
+    default: 'PENDING'
+  },
+  verificationToken: String,
+  verificationTokenExpiry: Date
+}, {
+  timestamps: true
+});
 
-export default mongoose.model("HospitalTenant", hospitalTenantSchema);
+module.exports = mongoose.model('Hospital', hospitalSchema);

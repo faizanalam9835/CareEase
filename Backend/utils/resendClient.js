@@ -4,7 +4,7 @@ const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Test email function
-const { getWelcomeEmailTemplate } = require('../templates/emailTemplates');
+const { getWelcomeEmailTemplate } = require('../utils/emailTemplates1');
 
 const testEmail = async () => {
   try {

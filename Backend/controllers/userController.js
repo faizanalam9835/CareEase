@@ -1,14 +1,15 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const { generateToken } = require('../utils/generateToken');
+const sendWelcomeEmail = require("../utils/emailTemplates1")
 
-// Create New User (Only Hospital Admin can do this)
 const createUser = async (req, res) => {
   try {
     const { 
       firstName, 
       lastName, 
       email, 
+      professionalemail,
       phone, 
       password, 
       department, 
@@ -22,10 +23,12 @@ const createUser = async (req, res) => {
       });
     }
 
-    // Check if user already exists with same email in same tenant
+    // Check existing user
     const existingUser = await User.findOne({ 
-      email: email.toLowerCase(),
-      tenantId: req.user.tenantId 
+      $or: [
+        { email: email.toLowerCase(), tenantId: req.user.tenantId },
+        { professionalemail: professionalemail?.toLowerCase(), tenantId: req.user.tenantId }
+      ]
     });
 
     if (existingUser) {
@@ -34,14 +37,16 @@ const createUser = async (req, res) => {
       });
     }
 
-    // Auto-generate password if not provided
-    const autoPassword = password || 'Welcome@123';
+    // ✅ Auto-generate password if not provided
+    const autoPassword = password || generateTemporaryPassword();
+    console.log('🔑 Generated temporary password:', autoPassword);
 
     // Create new user
     const newUser = new User({
       firstName,
       lastName,
       email: email.toLowerCase(),
+      professionalemail: professionalemail?.toLowerCase() || email.toLowerCase(),
       phone,
       password: autoPassword,
       department,
@@ -51,13 +56,42 @@ const createUser = async (req, res) => {
     });
 
     await newUser.save();
+    console.log('✅ User created in database:', newUser.email);
 
-    // Return user details (password exclude)
+    // ✅ Send email to PROFESSIONAL EMAIL with TEMPORARY PASSWORD
+    const emailToSend = professionalemail || email;
+    
+    console.log('📤 Attempting to send email to:', emailToSend);
+    console.log('🔑 Sending temporary password:', autoPassword);
+
+    sendWelcomeEmail(
+      {
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: emailToSend,
+        department: newUser.department,
+        roles: newUser.roles
+      },
+      req.user.hospitalName || 'CareEase Hospital',
+      autoPassword, // ✅ YAHI TEMPORARY PASSWORD BHEJ RAHA HUN
+      req.user.tenantId
+    ).then(result => {
+      if (result.success) {
+        console.log('✅ SUCCESS: Email sent to professional email:', emailToSend);
+        console.log('✅ Temporary password delivered:', autoPassword);
+      } else {
+        console.error('❌ FAILED: Email not sent to:', emailToSend);
+        console.error('❌ Error:', result.error);
+      }
+    });
+
+    // Response
     const userResponse = {
       id: newUser._id,
       firstName: newUser.firstName,
       lastName: newUser.lastName,
       email: newUser.email,
+      professionalemail: newUser.professionalemail,
       phone: newUser.phone,
       department: newUser.department,
       roles: newUser.roles,
@@ -67,17 +101,40 @@ const createUser = async (req, res) => {
     };
 
     res.status(201).json({
-      message: 'User created successfully!',
+      success: true,
+      message: 'User created successfully! Email sent with temporary password.',
       user: userResponse,
-      temporaryPassword: autoPassword // Show only first time
+      emailSentTo: emailToSend,
+      temporaryPassword: autoPassword // ✅ Response mein bhi dikha raha hun
     });
 
   } catch (error) {
     console.error('Create user error:', error);
     res.status(500).json({
+      success: false,
       error: 'Internal server error during user creation'
     });
   }
+};
+
+// ✅ Simple temporary password generator
+const generateTemporaryPassword = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$';
+  let password = '';
+  
+  // Ensure mix of characters
+  password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
+  password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
+  password += '0123456789'[Math.floor(Math.random() * 10)];
+  password += '@#$'[Math.floor(Math.random() * 3)];
+  
+  // Add remaining characters
+  for (let i = 4; i < 10; i++) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  
+  // Shuffle
+  return password.split('').sort(() => 0.5 - Math.random()).join('');
 };
 
 // Get All Users for Current Tenant

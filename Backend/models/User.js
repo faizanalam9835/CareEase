@@ -17,7 +17,6 @@ const userSchema = new mongoose.Schema({
   },
   professionalemail: {
     type: String,
-    required: true,
     unique: true
   },
   phone: {

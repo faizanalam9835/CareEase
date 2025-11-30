@@ -80,7 +80,8 @@ const registerHospital = async (req, res) => {
       message: 'Hospital registered successfully. Please check your email for verification.',
       tenantId: tenantId,
       hospitalId: newHospital._id,
-      status: 'PENDING'
+      status: 'PENDING',
+      verificationToken
     });
 
   } catch (error) {

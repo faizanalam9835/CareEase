@@ -3,13 +3,14 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 import LandingPage from './Pages/LandingPage'
+import AppRoutes from './components/AppRoutes'
 
 function App() {
   const [count, setCount] = useState(0)
 
   return (
     <>
-      <LandingPage/>
+      <AppRoutes/>
     </>
   )
 }

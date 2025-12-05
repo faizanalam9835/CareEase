@@ -139,7 +139,8 @@ const verifyHospital = async (req, res) => {
       adminUser: {
         id: adminUser._id,
         email: adminUser.email,
-        password: tempPassword, // Temporary, real app mein email bhejna chahiye
+        password: tempPassword,
+        singlepass:hashedPassword, // Temporary, real app mein email bhejna chahiye
         roles: adminUser.roles
       }
     });

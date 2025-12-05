@@ -66,6 +66,7 @@ const registerHospital = async (req, res) => {
             style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
             Verify Email
           </a>
+          verification token : ${verificationToken}
           <p><strong>Your Tenant ID:</strong> ${tenantId}</p>
           <p>This link will expire in 24 hours.</p>
         `
@@ -95,6 +96,7 @@ const registerHospital = async (req, res) => {
 // Email Verification
 const verifyHospital = async (req, res) => {
   try {
+    console.log("hello")
     const { token } = req.params;
 
     const hospital = await Hospital.findOne({
@@ -143,6 +145,7 @@ const verifyHospital = async (req, res) => {
     });
 
   } catch (error) {
+    console.log(error)
     console.error('Email verification error:', error);
     res.status(500).json({
       error: 'Internal server error during verification',

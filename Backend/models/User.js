@@ -21,7 +21,6 @@ const userSchema = new mongoose.Schema({
   },
   professionalemail: {
     type: String,
-    required: true,
     lowercase: true,
     trim: true
   },

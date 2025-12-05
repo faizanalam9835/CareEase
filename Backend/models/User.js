@@ -65,4 +65,5 @@ userSchema.index({ professionalemail: 1, tenantId: 1 }, { unique: true });
 // Password hash middleware
 
 
+
 module.exports = mongoose.model('User', userSchema);

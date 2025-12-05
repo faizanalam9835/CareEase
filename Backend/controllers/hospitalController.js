@@ -111,13 +111,13 @@ const verifyHospital = async (req, res) => {
 
     // ✅ AUTO CREATE ADMIN USER
     const tempPassword = 'Admin@123'; // Temporary password
-    
+    const hashedPassword = await bcrypt.hash(tempPassword, 12)
     const adminUser = new User({
       firstName: 'Admin',
       lastName: hospital.name,
       email: hospital.adminEmail,
       phone: hospital.contactNumber,
-      password: tempPassword,
+      password: hashedPassword,
       department: 'Administration',
       roles: ['HOSPITAL_ADMIN'],
       tenantId: hospital.tenantId,

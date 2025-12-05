@@ -38,7 +38,7 @@ const sendWelcomeEmail = async (user, hospitalName, temporaryPassword, tenantId)
       : `👤 Welcome to ${hospitalName} - Your Professional Account Details`;
 
     const { data, error } = await resend.emails.send({
-      from: `"${hospitalName} HR" <onboarding@careease-hms.com>`,
+      from: `"${hospitalName} HR" HMS <onboarding@resend.dev>`,
       to: user.email,
       subject: emailSubject,
       html: getWelcomeEmailTemplate(user, hospitalName, temporaryPassword, tenantId, isDoctor),

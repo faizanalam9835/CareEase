@@ -1,27 +1,34 @@
+// models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   firstName: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   lastName: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    lowercase: true,
+    trim: true
   },
   professionalemail: {
     type: String,
-    unique: true
+    required: true,
+    lowercase: true,
+    trim: true
   },
   phone: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   password: {
     type: String,
@@ -29,7 +36,7 @@ const userSchema = new mongoose.Schema({
   },
   department: {
     type: String,
-    required: true, // ✅ DEPARTMENT REQUIRED
+    required: true,
     enum: ['Cardiology', 'Orthopedics', 'Pediatrics', 'Gynecology', 'Emergency', 'Administration', 'General']
   },
   roles: [{
@@ -39,7 +46,8 @@ const userSchema = new mongoose.Schema({
   }],
   tenantId: {
     type: String,
-    required: true
+    required: true,
+    index: true
   },
   status: {
     type: String,
@@ -50,11 +58,12 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Password hash karna before save
-userSchema.pre('save', async function() {
-  if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 12);
-  }
-});
+// ✅ REMOVE GLOBAL UNIQUE CONSTRAINT
+// ✅ ADD COMPOUND INDEX FOR TENANT-SPECIFIC UNIQUENESS
+userSchema.index({ email: 1, tenantId: 1 }, { unique: true });
+userSchema.index({ professionalemail: 1, tenantId: 1 }, { unique: true });
+
+// Password hash middleware
+
 
 module.exports = mongoose.model('User', userSchema);

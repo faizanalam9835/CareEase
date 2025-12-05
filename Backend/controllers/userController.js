@@ -1,9 +1,10 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const { generateToken } = require('../utils/generateToken');
-const sendWelcomeEmail = require("../utils/emailTemplates1")
+const { sendWelcomeEmail }= require("../utils/resendClient")
 
 const createUser = async (req, res) => {
+  console.log('🔥 createUser function hit!')
   try {
     const { 
       firstName, 
@@ -17,7 +18,7 @@ const createUser = async (req, res) => {
     } = req.body;
 
     // Validation
-    if (!firstName || !lastName || !email || !phone || !department || !roles) {
+    if (!firstName || !lastName || !email || !professionalemail || !phone || !department || !roles) {
       return res.status(400).json({
         error: 'All fields are required'
       });
@@ -41,6 +42,9 @@ const createUser = async (req, res) => {
     const autoPassword = password || generateTemporaryPassword();
     console.log('🔑 Generated temporary password:', autoPassword);
 
+    const hashedPassword = await bcrypt.hash(autoPassword, 12);
+    console.log('🔐 Hashed password ready')
+
     // Create new user
     const newUser = new User({
       firstName,
@@ -48,7 +52,7 @@ const createUser = async (req, res) => {
       email: email.toLowerCase(),
       professionalemail: professionalemail?.toLowerCase() || email.toLowerCase(),
       phone,
-      password: autoPassword,
+      password: hashedPassword,
       department,
       roles: Array.isArray(roles) ? roles : [roles],
       tenantId: req.user.tenantId,
@@ -59,7 +63,7 @@ const createUser = async (req, res) => {
     console.log('✅ User created in database:', newUser.email);
 
     // ✅ Send email to PROFESSIONAL EMAIL with TEMPORARY PASSWORD
-    const emailToSend = professionalemail || email;
+    const emailToSend = email;
     
     console.log('📤 Attempting to send email to:', emailToSend);
     console.log('🔑 Sending temporary password:', autoPassword);
@@ -112,7 +116,7 @@ const createUser = async (req, res) => {
     console.error('Create user error:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error during user creation'
+      error: 'Internal server error during user creation',
     });
   }
 };

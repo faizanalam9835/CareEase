@@ -4,6 +4,8 @@ import viteLogo from '/vite.svg'
 import './App.css'
 import LandingPage from './Pages/LandingPage'
 import AppRoutes from './components/AppRoutes'
+import AllRoutes from './components/AllRoutes'
+import { BrowserRouter } from "react-router-dom";
 
 function App() {
   const [count, setCount] = useState(0)

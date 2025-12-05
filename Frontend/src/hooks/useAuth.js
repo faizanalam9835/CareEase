@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { authAPI } from '../services/auth'
 
+
 export const useAuth = () => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tenantId, setTenantId] = useState(null)
-
+  
   useEffect(() => {
     const initAuth = async () => {
       const storedUser = authAPI.getStoredUser()
@@ -58,6 +59,7 @@ export const useAuth = () => {
     authAPI.logout()
     setUser(null)
     setTenantId(null)
+    
   }
 
   // ✅ RBAC - Role-based access

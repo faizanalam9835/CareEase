@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 
 // Create axios instance with proper configuration
 const api = axios.create({
-  baseURL: 'https://careease-1.onrender.com/api',
+  baseURL: 'https://careease-3.onrender.com/api',
   timeout: 30000, // 30 seconds
   headers: {
     'Content-Type': 'application/json',

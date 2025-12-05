@@ -2,14 +2,17 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { Menu, Bell, Search, User, LogOut, Settings } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
 const Header = ({ sidebarOpen, setSidebarOpen }) => {
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-
+  const navigate = useNavigate()
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
+    navigate("/login")
+    window.location.reload()
   };
 
   return (
@@ -88,6 +91,7 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
                   className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
+                  
                   Sign out
                 </button>
               </div>

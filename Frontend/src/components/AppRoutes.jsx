@@ -1,14 +1,15 @@
 // src/AppRoutes.jsx
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+
 import Login from '../Pages/auth/Login'
 import LandingPage from '../Pages/LandingPage'
 import HospitalRegister from '../Pages/auth/HospitalRegister'
 import ProtectedRoute from '../components/layout/ProtectedRoute'
 import Layout from '../components/layout/Layout'
 
-// Lazy loaded components
+// Lazy components
 const AdminDashboard = React.lazy(() => import('../Pages/dashboard/AdminDashboard'))
 const UserManagement = React.lazy(() => import('../Pages/Admin/UserManagement/UserManagement'))
 const Patients = React.lazy(() => import('../Pages/patients/Patients'))
@@ -22,7 +23,7 @@ const AppRoutes = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#b2ebf2] to-cyan-200 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
           <p className="mt-4 text-cyan-800 font-medium">Loading CareEase HMS...</p>
@@ -32,125 +33,111 @@ const AppRoutes = () => {
   }
 
   return (
-    <Router>
-      <Routes>
-        {/* Public Routes */}
-        <Route path='/' element={<LandingPage />} />
-        <Route
-          path="/login"
-          element={
-            user ? <Navigate to="/dashboard" replace /> : <Login />
-          }
-        />
-        <Route path="/hospital-register" element={<HospitalRegister />} />
+    <Routes>
+      {/* PUBLIC ROUTES */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/hospital-register" element={<HospitalRegister />} />
+      <Route path="/login" element={<Login />} />
 
-        {/* ✅ CORRECTED: Protected Routes with Layout */}
-        <Route 
-          path="/"  // ✅ "/*" use karo instead of "/"
+      {/* PROTECTED ROUTES */}
+      <Route
+        path="/"
+        element={user ? <Layout /> : <Navigate to="/login" replace />}
+      >
+     
+
+        <Route
+          path="dashboard"
           element={
-            user ? <Layout /> : <Navigate to="/login" replace />
-          }
-        >
-          {/* ✅ REMOVE the extra <Route path="/" element={<Layout />}> wrapper */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          
-          {/* Dashboard */}
-          <Route path="dashboard" element={
             <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST']}>
-              <React.Suspense fallback={
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
-                </div>
-              }>
+              <React.Suspense fallback={<Loader />}>
                 <AdminDashboard />
               </React.Suspense>
             </ProtectedRoute>
-          } />
-          
-          {/* User Management */}
-          <Route path="/admin/users" element={
+          }
+        />
+
+        <Route
+          path="admin/users"
+          element={
             <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR']}>
-              <React.Suspense fallback={
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
-                </div>
-              }>
+              <React.Suspense fallback={<Loader />}>
                 <UserManagement />
               </React.Suspense>
             </ProtectedRoute>
-          } />
-          
-          {/* Patient Management */}
-          <Route path="patients" element={
+          }
+        />
+
+        <Route
+          path="patients"
+          element={
             <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST']}>
-              <React.Suspense fallback={
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
-                </div>
-              }>
+              <React.Suspense fallback={<Loader />}>
                 <Patients />
               </React.Suspense>
             </ProtectedRoute>
-          } />
-          
-          {/* Appointments */}
-          <Route path="appointments" element={
+          }
+        />
+
+        <Route
+          path="appointments"
+          element={
             <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST']}>
-              <React.Suspense fallback={
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
-                </div>
-              }>
+              <React.Suspense fallback={<Loader />}>
                 <Appointments />
               </React.Suspense>
             </ProtectedRoute>
-          } />
-          
-          {/* Prescriptions */}
-          <Route path="prescriptions" element={
+          }
+        />
+
+        <Route
+          path="prescriptions"
+          element={
             <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR', 'PHARMACIST']}>
-              <React.Suspense fallback={
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
-                </div>
-              }>
+              <React.Suspense fallback={<Loader />}>
                 <Prescriptions />
               </React.Suspense>
             </ProtectedRoute>
-          } />
-          
-          {/* Pharmacy */}
-          <Route path="pharmacy" element={
+          }
+        />
+
+        <Route
+          path="pharmacy"
+          element={
             <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'PHARMACIST']}>
-              <React.Suspense fallback={
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
-                </div>
-              }>
+              <React.Suspense fallback={<Loader />}>
                 <Pharmacy />
               </React.Suspense>
             </ProtectedRoute>
-          } />
-          
-          {/* Billing */}
-          <Route path="billing" element={
+          }
+        />
+
+        <Route
+          path="billing"
+          element={
             <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'RECEPTIONIST']}>
-              <React.Suspense fallback={
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
-                </div>
-              }>
+              <React.Suspense fallback={<Loader />}>
                 <Billing />
               </React.Suspense>
             </ProtectedRoute>
-          } />
-        </Route>
+          }
+        />
 
-        {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+        {/* CATCH ALL for protected area */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Route>
+
+      {/* GLOBAL CATCH ALL - for public area */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
+
+// Loader Component
+const Loader = () => (
+  <div className="flex justify-center items-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+  </div>
+)
 
 export default AppRoutes

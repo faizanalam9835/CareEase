@@ -40,7 +40,7 @@ const AdminDashboard = () => {
 
     try {
       console.log(`Making API call to: ${endpoint}`);
-      const response = await axios.get(`https://careease-1.onrender.com/api${endpoint}`, config);
+      const response = await axios.get(`https://careease-3.onrender.com/api${endpoint}`, config);
       console.log(`API Response from ${endpoint}:`, response.data);
       return response.data;
     } catch (error) {

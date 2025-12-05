@@ -16,16 +16,16 @@ import {
   Eye,
   Mail,
   CheckCircle,
-  XCircle
+  XCircle,
+  Briefcase
 } from 'lucide-react';
 
-// ✅ Simple API function - No service folder needed
-const API_BASE_URL = 'https://careease-1.onrender.com/api';
+// ✅ Simple API function
+const API_BASE_URL = 'https://careease-3.onrender.com/api';
 
 // ✅ Simple API call function
 const apiCall = async (endpoint, options = {}) => {
   try {
-    const authData = JSON.parse(localStorage.getItem('auth') || '{}');
     const token = localStorage.getItem("authToken");
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
@@ -53,7 +53,7 @@ const apiCall = async (endpoint, options = {}) => {
 };
 
 const UserManagement = () => {
-  const { user, hasRole, tenantId } = useAuth();
+  const { user, hasRole } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,7 +69,7 @@ const UserManagement = () => {
   const statusOptions = ['ACTIVE', 'INACTIVE', 'LOCKED'];
   const departments = ['Cardiology', 'Orthopedics', 'Pediatrics', 'Gynecology', 'Emergency', 'Administration', 'General'];
 
-  // ✅ Fetch users directly
+  // ✅ Fetch users
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -104,7 +104,7 @@ const UserManagement = () => {
     });
 
     if (result.success) {
-      toast.success('User created successfully!');
+      toast.success('User created successfully! Welcome email sent.');
       setShowCreateModal(false);
       fetchUsers();
     } else {
@@ -140,7 +140,6 @@ const UserManagement = () => {
       return;
     }
 
-    // Backend mein delete endpoint nahi hai, toh status INACTIVE karenge
     const result = await apiCall(`/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify({ status: 'INACTIVE' })
@@ -176,6 +175,7 @@ const UserManagement = () => {
       userItem.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       userItem.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       userItem.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userItem.professionalemail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       userItem.phone?.includes(searchTerm);
 
     const matchesRole = roleFilter === 'ALL' || userItem.roles?.includes(roleFilter);
@@ -244,7 +244,7 @@ const UserManagement = () => {
             <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Search users by name, email, phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
@@ -301,7 +301,10 @@ const UserManagement = () => {
                       <div className="font-medium text-gray-900">
                         {userItem.firstName} {userItem.lastName}
                       </div>
-                      <div className="text-sm text-gray-500">{userItem.email}</div>
+                      <div className="text-sm text-gray-500">
+                        <Mail className="h-3 w-3 inline mr-1" />
+                        {userItem.professionalemail || userItem.email}
+                      </div>
                     </div>
                   </div>
                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -320,6 +323,13 @@ const UserManagement = () => {
                     <Phone className="h-4 w-4 mr-2" />
                     {userItem.phone || 'No phone'}
                   </div>
+                  
+                  {userItem.professionalemail && userItem.professionalemail !== userItem.email && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Briefcase className="h-4 w-4 mr-2" />
+                      {userItem.professionalemail}
+                    </div>
+                  )}
                   
                   <div className="flex flex-wrap gap-1">
                     {userItem.roles?.map(role => (
@@ -402,6 +412,9 @@ const UserManagement = () => {
                   Contact
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Professional Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Role & Department
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -435,6 +448,20 @@ const UserManagement = () => {
                         <Phone className="h-4 w-4 mr-2 text-gray-400" />
                         {userItem.phone || 'Not provided'}
                       </div>
+                    </div>
+                  </td>
+
+                  {/* Professional Email Column */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center">
+                      <Briefcase className="h-4 w-4 mr-2 text-cyan-500" />
+                      {userItem.professionalemail ? (
+                        <span className="text-cyan-700 font-medium">
+                          {userItem.professionalemail}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Not set</span>
+                      )}
                     </div>
                   </td>
                   
@@ -601,6 +628,7 @@ const CreateUserModal = ({ onClose, onSubmit, roles, departments }) => {
     firstName: '',
     lastName: '',
     email: '',
+    professionalemail: '',
     phone: '',
     department: '',
     roles: []
@@ -673,7 +701,7 @@ const CreateUserModal = ({ onClose, onSubmit, roles, departments }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email *
+              Professional Email
               </label>
               <input
                 type="email"
@@ -683,6 +711,26 @@ const CreateUserModal = ({ onClose, onSubmit, roles, departments }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                 placeholder="user@hospital.com"
               />
+               <p className="text-xs text-gray-500 mt-1">
+                this email will be use for your workSpace
+              </p>
+            </div>
+
+            {/* Professional Email Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+               Personal Email *
+              </label>
+              <input
+                type="email"
+                value={formData.professionalemail}
+                onChange={(e) => setFormData({...formData, professionalemail: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                placeholder="name@gmail.com"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Welcome email with credentials will be sent to this address
+              </p>
             </div>
 
             <div>
@@ -736,6 +784,16 @@ const CreateUserModal = ({ onClose, onSubmit, roles, departments }) => {
             </div>
           </div>
 
+          <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+            <div className="flex items-center space-x-2 text-cyan-800">
+              <Briefcase className="h-4 w-4" />
+              <span className="font-medium">Professional Email Notice</span>
+            </div>
+            <p className="text-sm text-cyan-700 mt-1">
+              If professional email is provided, welcome email with login credentials will be sent there. Otherwise, it will be sent to personal email.
+            </p>
+          </div>
+
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
             <button
               type="button"
@@ -787,15 +845,33 @@ const ViewUserModal = ({ user, onClose, onEdit, canEdit, getRoleBadgeColor }) =>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 gap-4 text-sm">
+            <div>
+              <span className="font-medium text-gray-700">Personal Email:</span>
+              <p className="text-gray-900">{user.email}</p>
+            </div>
+            
+            {/* Professional Email Display */}
+            {user.professionalemail && (
+              <div>
+                <span className="font-medium text-gray-700 flex items-center">
+                  <Briefcase className="h-4 w-4 mr-1 text-cyan-600" />
+                  Professional Email:
+                </span>
+                <p className="text-gray-900 font-medium text-cyan-700">{user.professionalemail}</p>
+              </div>
+            )}
+            
             <div>
               <span className="font-medium text-gray-700">Phone:</span>
               <p className="text-gray-900">{user.phone || 'Not provided'}</p>
             </div>
+            
             <div>
               <span className="font-medium text-gray-700">Department:</span>
               <p className="text-gray-900">{user.department || 'Not assigned'}</p>
             </div>
+            
             <div>
               <span className="font-medium text-gray-700">Status:</span>
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -809,6 +885,7 @@ const ViewUserModal = ({ user, onClose, onEdit, canEdit, getRoleBadgeColor }) =>
                 {user.status}
               </span>
             </div>
+            
             <div>
               <span className="font-medium text-gray-700">Tenant ID:</span>
               <p className="text-gray-900 font-mono text-xs">{user.tenantId}</p>
@@ -858,6 +935,7 @@ const EditUserModal = ({ user, onClose, onSubmit, roles, departments, statusOpti
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
+    professionalemail: user.professionalemail || '',
     phone: user.phone,
     department: user.department,
     roles: user.roles || [],
@@ -923,7 +1001,7 @@ const EditUserModal = ({ user, onClose, onSubmit, roles, departments, statusOpti
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email *
+                Personal Email *
               </label>
               <input
                 type="email"
@@ -931,6 +1009,20 @@ const EditUserModal = ({ user, onClose, onSubmit, roles, departments, statusOpti
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Professional Email Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Professional Email
+              </label>
+              <input
+                type="email"
+                value={formData.professionalemail}
+                onChange={(e) => setFormData({...formData, professionalemail: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                placeholder="dr.name@hospital.com"
               />
             </div>
 

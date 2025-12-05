@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, Heart } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -51,16 +53,11 @@ export default function Header() {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <button className="px-5 py-2 text-gray-700 hover:text-cyan-600 transition-all duration-300 relative group">
-              <span>Login</span>
-            </button>
-
             <button
-              className="px-6 py-2.5 rounded-full text-white transition-all duration-300 hover:shadow-xl transform hover:scale-105 relative overflow-hidden group"
-              style={{ backgroundColor: '#00acc1' }}
+              onClick={() => navigate('/login')}
+              className="px-5 py-2 text-gray-700 hover:text-cyan-600 transition-all duration-300 relative group"
             >
-              <span className="relative z-10">Sign Up</span>
-              <span className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+              <span>Login</span>
             </button>
           </div>
 
@@ -91,15 +88,11 @@ export default function Header() {
             ))}
 
             <div className="pt-4 space-y-2">
-              <button className="w-full px-5 py-2 text-gray-700 border border-gray-300 rounded-full hover:border-cyan-400 transition-colors">
-                Login
-              </button>
-
               <button
-                className="w-full px-6 py-2 rounded-full text-white transition-all"
-                style={{ backgroundColor: '#b2ebf2', color: '#0e4c5c' }}
+                onClick={() => navigate('/login')}
+                className="w-full px-5 py-2 text-gray-700 border border-gray-300 rounded-full hover:border-cyan-400 transition-colors"
               >
-                Sign Up
+                Login
               </button>
             </div>
           </div>

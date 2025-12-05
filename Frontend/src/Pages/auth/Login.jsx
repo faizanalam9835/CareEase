@@ -24,6 +24,7 @@ const Login = () => {
       
       toast.success(`Welcome back, ${response.user.firstName}!`)
       navigate('/dashbooard')
+      window.reload.href()
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Login failed!'
       toast.error(errorMessage)

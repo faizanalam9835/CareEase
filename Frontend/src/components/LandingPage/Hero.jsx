@@ -1,7 +1,12 @@
 import React from 'react';
 import { ArrowRight, Play, Sparkles } from 'lucide-react';
+import { useNavigate } from "react-router-dom"
 
 export default function Hero() {
+
+  const navigate = useNavigate()
+
+
   return (
     <section
       id="home"
@@ -48,6 +53,7 @@ export default function Hero() {
             <div className="flex flex-col sm:flex-row gap-4">
               {/* Button 1 */}
               <button
+                onClick={() => navigate("/hospital-register")}
                 className="group px-8 py-4 rounded-full text-white transition-all duration-300 hover:shadow-2xl transform hover:scale-105 flex items-center justify-center space-x-2 relative overflow-hidden"
                 style={{ backgroundColor: "#00838f" }}
               >

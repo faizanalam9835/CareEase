@@ -69,7 +69,7 @@ const Patients = () => {
     
     const config = {
       method,
-      url: `https://careease-1.onrender.com/api${endpoint}`,
+      url: `https://careease-3.onrender.com/api${endpoint}`,
       headers: {
         'Authorization': `Bearer ${authToken}`,
         'X-Tenant-ID': tenantId,

@@ -62,7 +62,7 @@ const registerHospital = async (req, res) => {
           <h2>Welcome to Hospital Management System!</h2>
           <p>Dear ${name},</p>
           <p>Your hospital registration is almost complete. Please click the link below to verify your email:</p>
-          <a href="http://localhost:5000/api/hospitals/verify/${verificationToken}" 
+          <a href="https://care-ease-six.vercel.app/api/hospitals/verify/${verificationToken}" 
             style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
             Verify Email
           </a>

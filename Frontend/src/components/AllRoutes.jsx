@@ -11,5 +11,5 @@ export default function AllRoutes() {
       {/* Default Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  );
+  )
 }

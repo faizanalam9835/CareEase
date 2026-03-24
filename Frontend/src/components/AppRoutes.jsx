@@ -1,4 +1,3 @@
-// src/AppRoutes.jsx
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -6,6 +5,8 @@ import { useAuth } from '../hooks/useAuth'
 import Login from '../Pages/auth/Login'
 import LandingPage from '../Pages/LandingPage'
 import HospitalRegister from '../Pages/auth/HospitalRegister'
+import Verify from '../Pages/Verify'
+
 import ProtectedRoute from '../components/layout/ProtectedRoute'
 import Layout from '../components/layout/Layout'
 
@@ -21,30 +22,22 @@ const Billing = React.lazy(() => import('../Pages/billing/Billing'))
 const AppRoutes = () => {
   const { user, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
-          <p className="mt-4 text-cyan-800 font-medium">Loading CareEase HMS...</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <Loader />
 
   return (
     <Routes>
-      {/* PUBLIC ROUTES */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/hospital-register" element={<HospitalRegister />} />
-      <Route path="/login" element={<Login />} />
 
-      {/* PROTECTED ROUTES */}
+      {/* 🌍 PUBLIC ROUTES */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={!user ? <Login /> : <Navigate to="/app/dashboard" />} />
+      <Route path="/hospital-register" element={<HospitalRegister />} />
+      <Route path="/verify/:token" element={<Verify />} />
+
+      {/* 🔐 PROTECTED ROUTES */}
       <Route
-        path="/"
+        path="/app"
         element={user ? <Layout /> : <Navigate to="/login" replace />}
       >
-     
 
         <Route
           path="dashboard"
@@ -123,20 +116,20 @@ const AppRoutes = () => {
           }
         />
 
-        {/* CATCH ALL for protected area */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* 🔁 Protected fallback */}
+        <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
       </Route>
 
-      {/* GLOBAL CATCH ALL - for public area */}
+      {/* 🌐 Global fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
+
     </Routes>
   )
 }
 
-// Loader Component
 const Loader = () => (
-  <div className="flex justify-center items-center h-64">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+  <div className="flex justify-center items-center min-h-screen">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-600"></div>
   </div>
 )
 

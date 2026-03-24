@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+
+
 const appointmentSchema = new mongoose.Schema({
   appointmentId: {
     type: String,
@@ -66,6 +68,8 @@ const appointmentSchema = new mongoose.Schema({
     type: String,
     required: true
   }
+  ,
+
 }, {
   timestamps: true
 });
@@ -91,3 +95,8 @@ appointmentSchema.index({ patientId: 1, appointmentDate: 1 });
 appointmentSchema.index({ tenantId: 1, status: 1 });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
+
+
+
+
+

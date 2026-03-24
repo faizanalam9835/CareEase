@@ -66,7 +66,6 @@ const medicineSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
-
 // Auto-generate medicineId
 medicineSchema.pre('save', async function() {
   if (this.isNew) {

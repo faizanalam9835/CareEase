@@ -71,9 +71,8 @@ const createPrescription = async (req, res) => {
         diagnosis: newPrescription.diagnosis,
         medicines: newPrescription.medicines,
         status: newPrescription.status
-      }
+      } 
     });
-
   } catch (error) {
     console.error('Create prescription error:', error);
     res.status(500).json({

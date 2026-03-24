@@ -7,37 +7,51 @@ const bcrypt = require('bcryptjs');
 // Hospital Self-Registration
 const registerHospital = async (req, res) => {
   try {
+    console.log("📥 Incoming Request Body:", req.body);
+
     const { name, address, contactNumber, adminEmail, licenseNumber } = req.body;
 
     // Basic validation
     if (!name || !address || !contactNumber || !adminEmail || !licenseNumber) {
+      console.log("❌ Validation Failed - Missing Fields");
       return res.status(400).json({
         error: 'All fields are required'
       });
     }
 
-    // Check if license number already exists
+    console.log("✅ Validation Passed");
+
+    // Check if hospital exists
+    console.log("🔍 Checking existing hospital...");
     const existingHospital = await Hospital.findOne({ 
-      $or: [
-        { licenseNumber },
-        { adminEmail }
-      ]
+      $or: [{ licenseNumber }, { adminEmail }]
     });
 
     if (existingHospital) {
+      console.log("❌ Hospital already exists:", existingHospital);
       return res.status(400).json({
         error: 'Hospital with this license number or email already exists'
       });
     }
 
-    // Generate unique tenant ID
+    console.log("✅ No existing hospital found");
+
+    // Generate tenant ID
     const tenantId = `T${uuidv4().split('-')[0].toUpperCase()}`;
-    
+    console.log("🆔 Generated Tenant ID:", tenantId);
+
     // Generate verification token
     const verificationToken = uuidv4();
-    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Create new hospital
+    console.log("🔑 Verification Token:", verificationToken);
+    console.log("⏳ Token Expiry:", verificationTokenExpiry);
+
+    // Create verification link
+    const verificationLink = `https://care-ease-six.vercel.app/verify/${verificationToken}`;
+    console.log("🔗 Verification Link:", verificationLink);
+
+    // Create hospital
     const newHospital = new Hospital({
       name,
       address,
@@ -50,43 +64,53 @@ const registerHospital = async (req, res) => {
       status: 'PENDING'
     });
 
+    console.log("💾 Saving hospital to DB...");
     await newHospital.save();
+    console.log("✅ Hospital saved:", newHospital._id);
 
-    // Send verification email using Resend
+    // Send email
     try {
-      await resend.emails.send({
+      console.log("📧 Sending email to:", adminEmail);
+
+      const emailResponse = await resend.emails.send({
         from: 'HMS <onboarding@resend.dev>',
         to: adminEmail,
         subject: 'Verify Your Hospital Registration - HMS',
         html: `
           <h2>Welcome to Hospital Management System!</h2>
           <p>Dear ${name},</p>
-          <p>Your hospital registration is almost complete. Please click the link below to verify your email:</p>
-          <a href="https://care-ease-six.vercel.app/api/hospitals/verify/${verificationToken}" 
+          <p>Please verify your email:</p>
+          <a href="${verificationLink}" 
             style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
             Verify Email
           </a>
-          verification token : ${verificationToken}
-          <p><strong>Your Tenant ID:</strong> ${tenantId}</p>
-          <p>This link will expire in 24 hours.</p>
+          <p>Token: ${verificationToken}</p>
+          <p><strong>Tenant ID:</strong> ${tenantId}</p>
         `
       });
-      console.log(`✅ Verification email sent to: ${adminEmail}`);
+
+      console.log("✅ Email sent successfully");
+      console.log("📨 Email Response:", emailResponse);
+      console.log("📌 FINAL VERIFICATION LINK SENT:", verificationLink);
+
     } catch (emailError) {
-      console.error('❌ Email sending failed:', emailError);
-      // Email fail hua to bhi hospital save ho jayega
+      console.error("❌ Email sending failed:", emailError);
+      console.log("⚠️ But hospital is still saved in DB");
     }
+
+    console.log("🎉 Registration Completed Successfully");
 
     res.status(201).json({
       message: 'Hospital registered successfully. Please check your email for verification.',
-      tenantId: tenantId,
+      tenantId,
       hospitalId: newHospital._id,
       status: 'PENDING',
-      verificationToken
+      verificationToken,
+      verificationLink // optional for testing
     });
 
   } catch (error) {
-    console.error('Hospital registration error:', error);
+    console.error("💥 Hospital registration error:", error);
     res.status(500).json({
       error: 'Internal server error during registration'
     });

@@ -60,7 +60,6 @@ const addMedicine = async (req, res) => {
     });
 
     await newMedicine.save();
-
     res.status(201).json({
       message: 'Medicine added to inventory successfully!',
       medicine: {

@@ -9,7 +9,6 @@ const registerPatient = async (req, res) => {
         email, address, emergencyContact, allergies, chronicConditions,
         currentMedications, patientType, department
       } = req.body;
-  
       // Basic validation
       if (!firstName || !lastName || !dateOfBirth || !gender || !phone) {
         return res.status(400).json({

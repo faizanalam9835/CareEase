@@ -24,7 +24,7 @@ export default function Verify() {
   const verifyHospital = async () => {
     try {
       const res = await axios.get(
-        `${Api.baseURL}/hospital/verify/${token}`
+        `${Api.baseURL}/hospitals/verify/${token}`
       )
 
       console.log('VERIFY RESPONSE:', res.data)

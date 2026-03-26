@@ -24,7 +24,7 @@ export default function Verify() {
   const verifyHospital = async () => {
     try {
       const res = await axios.get(
-        `https://careease-3.onrender.com/api/hospital/verify/${token}`
+        `https://careease-3.onrender.com/api/hospitals/verify/${token}`
       )
 
       console.log('VERIFY RESPONSE:', res.data)

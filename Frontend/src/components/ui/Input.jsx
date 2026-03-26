@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { forwardRef } from 'react'
 
-const Input = ({ 
+const Input = forwardRef(({ 
   label, 
   type = 'text', 
   icon, 
@@ -8,7 +8,7 @@ const Input = ({
   error,
   className = '',
   ...props 
-}) => {
+}, ref) => {
   return (
     <div className={className}>
       {label && (
@@ -22,7 +22,9 @@ const Input = ({
             {icon}
           </div>
         )}
+
         <input
+          ref={ref}   // 🔥 MOST IMPORTANT LINE
           type={type}
           className={`
             block w-full rounded-xl border-2 pl-10 pr-10
@@ -36,17 +38,19 @@ const Input = ({
           `}
           {...props}
         />
+
         {rightIcon && (
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
             {rightIcon}
           </div>
         )}
       </div>
+
       {error && (
         <p className="mt-2 text-sm text-red-600 font-medium">{error.message}</p>
       )}
     </div>
   )
-}
+})
 
 export default Input

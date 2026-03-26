@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import Api from '../services/api'
 
 export default function Verify() {
   const { token } = useParams()
@@ -23,7 +24,7 @@ export default function Verify() {
   const verifyHospital = async () => {
     try {
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/hospital/verify/${token}`
+        `${Api.baseURL}/hospital/verify/${token}`
       )
 
       console.log('VERIFY RESPONSE:', res.data)

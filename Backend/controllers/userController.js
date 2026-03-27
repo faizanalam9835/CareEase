@@ -233,4 +233,30 @@ const updateUser = async (req, res) => {
   }
 };
 
-module.exports = { createUser, getAllUsers, getUserById, updateUser };
+const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findOneAndDelete({
+      _id: req.params.id,
+      tenantId: req.user.tenantId
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'User deleted permanently'
+    });
+
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({
+      error: 'Internal server error during delete'
+    });
+  }
+};
+
+module.exports = { createUser, getAllUsers, getUserById, updateUser , deleteUser };

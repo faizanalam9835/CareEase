@@ -1,5 +1,5 @@
 const express = require('express');
-const { createUser, getAllUsers, getUserById, updateUser } = require('../controllers/userController');
+const { createUser, getAllUsers, getUserById, updateUser ,deleteUser } = require('../controllers/userController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -15,5 +15,7 @@ router.get('/:id', authenticateToken, getUserById);
 
 // Update user
 router.put('/:id', authenticateToken, authorizeRoles('HOSPITAL_ADMIN'), updateUser);
+
+router.delete('/:id', authenticateToken, authorizeRoles('HOSPITAL_ADMIN'), deleteUser);
 
 module.exports = router;

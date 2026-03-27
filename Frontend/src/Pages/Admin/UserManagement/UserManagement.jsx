@@ -63,6 +63,8 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+ const [userToDelete, setUserToDelete] = useState(null);
 
   // User roles and departments
   const userRoles = ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST'];
@@ -129,29 +131,35 @@ const UserManagement = () => {
     }
   };
 
+const handleDeleteClick = (userId) => {
+  setUserToDelete(userId);
+  setShowDeleteModal(true);
+};
+
   // ✅ Delete user function
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) {
-      return;
-    }
+const handleDeleteUser = async () => {
+  if (!userToDelete) return;
 
-    if (!hasRole('HOSPITAL_ADMIN')) {
-      toast.error('Access denied');
-      return;
-    }
+  if (!hasRole('HOSPITAL_ADMIN')) {
+    toast.error('Access denied');
+    return;
+  }
 
-    const result = await apiCall(`/users/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status: 'INACTIVE' })
-    });
+  const result = await apiCall(`/users/${userToDelete}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ status: 'INACTIVE' })
+  });
 
-    if (result.success) {
-      toast.success('User deactivated successfully!');
-      fetchUsers();
-    } else {
-      toast.error(result.error);
-    }
-  };
+  if (result.success) {
+    toast.success('User deactivated successfully!');
+    fetchUsers();
+  } else {
+    toast.error(result.error);
+  }
+
+  setShowDeleteModal(false);
+  setUserToDelete(null);
+};
 
   // ✅ Toggle user status
   const handleStatusToggle = async (userId, currentStatus) => {
@@ -387,7 +395,7 @@ const UserManagement = () => {
                       </button>
                       
                       <button
-                        onClick={() => handleDeleteUser(userItem._id)}
+                        onClick={() => handleDeleteClick(userItem._id)}
                         className="text-red-600 hover:text-red-700 text-sm"
                       >
                         Delete
@@ -539,7 +547,7 @@ const UserManagement = () => {
                           </button>
                           
                           <button
-                            onClick={() => handleDeleteUser(userItem._id)}
+                              onClick={() => handleDeleteClick(userItem._id)}
                             className="text-red-600 hover:text-red-900 transition-colors"
                             title="Delete User"
                           >
@@ -618,6 +626,44 @@ const UserManagement = () => {
           statusOptions={statusOptions}
         />
       )}
+       {showDeleteModal && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+    
+    <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 border-t-4 border-cyan-600">
+      
+      <h2 className="text-lg font-semibold text-gray-900 mb-2">
+        Confirm Action
+      </h2>
+
+      <p className="text-sm text-gray-600 mb-6">
+        Are you sure you want to deactivate this user? This action will disable their access.
+      </p>
+
+      <div className="flex justify-end space-x-3">
+        
+        <button
+          onClick={() => {
+            setShowDeleteModal(false);
+            setUserToDelete(null);
+          }}
+          className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleDeleteUser}
+          className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700"
+        >
+          Confirm
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+   )}
+
     </div>
   );
 };
@@ -1115,5 +1161,7 @@ const EditUserModal = ({ user, onClose, onSubmit, roles, departments, statusOpti
     </div>
   );
 };
+
+
 
 export default UserManagement;

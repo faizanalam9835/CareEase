@@ -25,55 +25,55 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const menuItems = [
     {
       name: 'Dashboard',
-      path: '/dashboard',
+      path: '/app/dashboard',
       icon: BarChart3,
       roles: ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST']
     },
     {
       name: 'User Management',
-      path: '/admin/users',
+      path: '/app/admin/users',
       icon: Users,
       roles: ['HOSPITAL_ADMIN', 'DOCTOR']
     },
     {
       name: 'Patient Management',
-      path: '/patients',
+      path: '/app/patients',
       icon: Stethoscope,
       roles: ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST']
     },
     {
       name: 'Appointments',
-      path: '/appointments',
+      path: '/app/appointments',
       icon: Calendar,
       roles: ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST']
     },
     {
       name: 'Prescriptions',
-      path: '/prescriptions',
+      path: '/app/prescriptions',
       icon: FileText,
       roles: ['HOSPITAL_ADMIN', 'DOCTOR', 'PHARMACIST']
     },
     {
       name: 'Pharmacy',
-      path: '/pharmacy',
+      path: '/app/pharmacy',
       icon: Pill,
       roles: ['HOSPITAL_ADMIN', 'PHARMACIST']
     },
     {
       name: 'Billing',
-      path: '/billing',
+      path: '/app/billing',
       icon: CreditCard,
       roles: ['HOSPITAL_ADMIN', 'RECEPTIONIST']
     },
     {
       name: 'Role Management',
-      path: '/admin/roles',
+      path: '/app/admin/roles',
       icon: Shield,
       roles: ['HOSPITAL_ADMIN']
     },
     {
       name: 'Hospital Settings',
-      path: '/admin/settings',
+      path: '/app/admin/settings',
       icon: Building2,
       roles: ['HOSPITAL_ADMIN']
     }

@@ -1,16 +1,18 @@
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
-import { Mail, Lock, Eye, EyeOff, Stethoscope, Heart } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Heart } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
-import { authAPI } from '../../services/auth'
+import { useAuth } from '../../context/AuthContext'
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+
   const navigate = useNavigate()
+  const { login } = useAuth()
 
   const { register, handleSubmit, formState: { errors } } = useForm()
 
@@ -18,46 +20,20 @@ const Login = () => {
     setLoading(true)
 
     try {
-      console.log("📡 Calling login API...")
+      const response = await login(data)
 
-      const response = await authAPI.login(data)
-
-      console.log("✅ API Response:", response)
-
-      // ✅ Handle failed response
-      if (!response || !response.success) {
-        toast.error(response?.error || "Login failed")
+      if (!response.success) {
+        toast.error(response.error || "Login failed")
         return
       }
 
-      // ✅ Store auth data
-      authAPI.storeAuthData(response)
+      toast.success("Welcome back!")
 
-      // ✅ Safe access user
-      const firstName = response?.user?.firstName || "User"
-
-      toast.success(`Welcome back, ${firstName}!`)
-
-      // ✅ Navigate only if success
-      navigate('/app/dashboard')
+      // ✅ NAVIGATION HERE (CORRECT)
+      navigate('/app/dashboard', { replace: true })
 
     } catch (error) {
-      console.error("❌ Login Error:", error)
-
-      // ✅ Network error
-      if (error.message === "Network Error") {
-        toast.error("Server unreachable. Check internet or backend.")
-        return
-      }
-
-      // ✅ Backend error
-      const errorMessage =
-        error.response?.data?.error ||
-        error.message ||
-        "Something went wrong"
-
-      toast.error(errorMessage)
-
+      toast.error("Something went wrong")
     } finally {
       setLoading(false)
     }
@@ -65,43 +41,19 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* Left Side - Login Form */}
+      {/* LEFT SIDE SAME */}
+
       <div className="flex-1 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8 xl:px-12 bg-white">
         <div className="mx-auto w-full max-w-sm sm:max-w-md lg:max-w-none lg:w-96">
-
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex justify-center mb-8">
-            <div className="bg-[#b2ebf2] rounded-xl p-3 shadow-lg">
-              <Stethoscope className="h-8 w-8 text-cyan-700" />
-            </div>
-            <div className="ml-4">
-              <h2 className="text-2xl font-bold text-gray-900">CareEase HMS</h2>
-              <p className="text-sm text-cyan-600 font-medium">Hospital Management System</p>
-            </div>
-          </div>
-
-          {/* Desktop Logo */}
-          <div className="hidden lg:block">
-            <div className="flex items-center">
-              <div className="bg-[#b2ebf2] rounded-xl p-3 shadow-lg">
-                <Stethoscope className="h-8 w-8 text-cyan-700" />
-              </div>
-              <div className="ml-4">
-                <h2 className="text-2xl font-bold text-gray-900">CareEase HMS</h2>
-                <p className="text-sm text-cyan-600 font-medium">Hospital Management System</p>
-              </div>
-            </div>
-          </div>
 
           <div className="mt-8">
             <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit(onSubmit)}>
 
-              {/* Inputs */}
               <div className="space-y-4">
                 <Input
                   label="Email Address"
                   type="email"
-                  icon={<Mail className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />}
+                  icon={<Mail className="h-4 w-4 text-cyan-500" />}
                   placeholder="admin@hospital.com"
                   error={errors.email}
                   {...register('email', {
@@ -116,7 +68,7 @@ const Login = () => {
                 <Input
                   label="Password"
                   type={showPassword ? 'text' : 'password'}
-                  icon={<Lock className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />}
+                  icon={<Lock className="h-4 w-4 text-cyan-500" />}
                   placeholder="Enter your password"
                   error={errors.password}
                   rightIcon={
@@ -140,7 +92,7 @@ const Login = () => {
                   label="Hospital ID"
                   type="text"
                   placeholder="TABC123"
-                  icon={<Heart className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-500" />}
+                  icon={<Heart className="h-4 w-4 text-cyan-500" />}
                   error={errors.tenantId}
                   {...register('tenantId', {
                     required: 'Hospital ID is required'
@@ -148,7 +100,6 @@ const Login = () => {
                 />
               </div>
 
-              {/* Submit */}
               <Button
                 type="submit"
                 disabled={loading}
@@ -157,28 +108,12 @@ const Login = () => {
                 {loading ? "Loading..." : "Access Dashboard"}
               </Button>
 
-              {/* Demo Button */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  className="text-cyan-600"
-                  onClick={() => {
-                    document.querySelector('input[name="email"]').value = 'admin@apollo.com'
-                    document.querySelector('input[name="password"]').value = 'Admin@123'
-                    document.querySelector('input[name="tenantId"]').value = 'TDADBA9CB'
-                    toast.success('Demo credentials filled!')
-                  }}
-                >
-                  Try Demo Login
-                </button>
-              </div>
-
             </form>
           </div>
         </div>
       </div>
 
-      {/* Right Side same as before */}
+      {/* RIGHT SIDE SAME */}
       <div className="hidden lg:flex flex-1 flex-col justify-center items-center bg-gradient-to-br from-[#B2EBF2] to-cyan-200 p-8 xl:p-12">
         <div className="max-w-md text-center w-full">
           <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-2xl border border-white/40">

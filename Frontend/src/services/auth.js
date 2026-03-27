@@ -1,24 +1,24 @@
 import api from './api'
 
 export const authAPI = {
-  login: async (credentials) => {
+login: async (credentials) => {
+    console.log('📡 [API] Sending request:', credentials)
+
     try {
-      const response = await api.post('/auth/login', credentials)
-      
-      if (response.data.success) {
-        // ✅ Auth data store karo
-        authAPI.storeAuthData(response.data)
-      }
-      
-      return response.data
+        const res = await api.post('/auth/login', credentials)
+
+        console.log('📥 [API] Full Axios response:', res)
+        console.log('📥 [API] res.data:', res.data)
+
+        return res.data   // ⚠️ IMPORTANT
+
     } catch (error) {
-      console.error('Login API Error:', error)
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Login failed'
-      }
+        console.error('❌ [API] Error response:', error.response)
+        return {
+            error: error.response?.data?.error || error.message
+        }
     }
-  },
+},
   
   getCurrentUser: async () => {
     try {

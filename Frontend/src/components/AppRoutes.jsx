@@ -1,6 +1,6 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../context/AuthContext'
 
 import Login from '../Pages/auth/Login'
 import LandingPage from '../Pages/LandingPage'
@@ -21,12 +21,12 @@ const Billing = React.lazy(() => import('../Pages/billing/Billing'))
 
 const AppRoutes = () => {
   const { user, loading } = useAuth()
-
+    console.log("🔥 AppRoutes mounted")
   if (loading) return <Loader />
-
+  console.log("AUTH USER:", user)
   return (
     <Routes>
-
+    
       {/* 🌍 PUBLIC ROUTES */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/app/dashboard" />} />

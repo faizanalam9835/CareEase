@@ -6,13 +6,16 @@ import LandingPage from './Pages/LandingPage'
 import AppRoutes from './components/AppRoutes'
 import AllRoutes from './components/AllRoutes'
 import { BrowserRouter } from "react-router-dom";
+import { AuthProvider } from './context/AuthContext'
 
 function App() {
   const [count, setCount] = useState(0)
 
   return (
     <>
-      <AppRoutes/>
+<AuthProvider>
+  <AppRoutes />
+</AuthProvider>
     </>
   )
 }

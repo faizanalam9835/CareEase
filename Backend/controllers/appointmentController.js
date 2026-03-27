@@ -139,7 +139,7 @@ const sendAppointmentEmails = async (appointment, patient, doctor) => {
     if (doctor.email) {
       const doctorEmail = appointmentEmailTemplates.doctorAppointmentNotification(appointment, patient, doctor);
       await resend.emails.send({
-        from: 'HMS Appointments <appointments@resend.dev>',
+        from: `HMS <${process.env.EMAIL_USER}>`,
         to: doctor.email,
         subject: doctorEmail.subject,
         html: doctorEmail.html

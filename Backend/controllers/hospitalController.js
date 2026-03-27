@@ -73,7 +73,7 @@ const registerHospital = async (req, res) => {
       console.log("📧 Sending email to:", adminEmail);
 
       const emailResponse = await resend.emails.send({
-        from: 'HMS <onboarding@resend.dev>',
+        from: `HMS <${process.env.EMAIL_USER}>`,
         to: adminEmail,
         subject: 'Verify Your Hospital Registration - HMS',
         html: `

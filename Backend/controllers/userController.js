@@ -32,11 +32,11 @@ const createUser = async (req, res) => {
       ]
     });
 
-    if (existingUser) {
-      return res.status(400).json({
-        error: 'User with this email already exists'
-      });
-    }
+    // if (existingUser) {
+    //   return res.status(400).json({
+    //     error: 'User with this email already exists'
+    //   });
+    // }
 
     // ✅ Auto-generate password if not provided
     const autoPassword = password || generateTemporaryPassword();
@@ -63,7 +63,7 @@ const createUser = async (req, res) => {
     console.log('✅ User created in database:', newUser.email);
 
     // ✅ Send email to PROFESSIONAL EMAIL with TEMPORARY PASSWORD
-    const emailToSend = email;
+    const emailToSend = professionalemail;
     
     console.log('📤 Attempting to send email to:', emailToSend);
     console.log('🔑 Sending temporary password:', autoPassword);

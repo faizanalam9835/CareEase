@@ -197,16 +197,26 @@ const updateAppointmentStatus = async (req, res) => {
     }
 
     // Status update permissions
-    if (req.user.roles.includes('DOCTOR')) {
-      // Doctor can update status and add notes
-      appointment.status = status;
-      if (doctorNotes) appointment.doctorNotes = doctorNotes;
-      if (cancellationReason) appointment.cancellationReason = cancellationReason;
-    } else if (req.user.roles.includes('RECEPTIONIST')) {
-      // Receptionist can only update status
-      appointment.status = status;
-      if (cancellationReason) appointment.cancellationReason = cancellationReason;
-    }
+if (
+  req.user.roles.includes('DOCTOR') ||
+  req.user.roles.includes('RECEPTIONIST') ||
+  req.user.roles.includes('HOSPITAL_ADMIN')
+) {
+  // All allowed roles can update status
+  appointment.status = status;
+
+  if (doctorNotes && req.user.roles.includes('DOCTOR')) {
+    appointment.doctorNotes = doctorNotes;
+  }
+
+  if (cancellationReason) {
+    appointment.cancellationReason = cancellationReason;
+  }
+} else {
+  return res.status(403).json({
+    error: 'You are not authorized to update appointment status'
+  });
+}
 
     await appointment.save();
 

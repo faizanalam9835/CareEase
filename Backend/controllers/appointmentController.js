@@ -65,6 +65,16 @@ const createAppointment = async (req, res) => {
     await newAppointment.populate('patientId', 'firstName lastName patientId phone email');
     await newAppointment.populate('doctorId', 'firstName lastName department email');
 
+  try {
+  await sendAppointmentEmails(
+    newAppointment,
+    newAppointment.patientId,
+    newAppointment.doctorId
+  );
+} catch (emailError) {
+  console.error("Email failed but appointment created:", emailError);
+}
+
     res.status(201).json({
       message: 'Appointment booked successfully!',
       appointment: newAppointment

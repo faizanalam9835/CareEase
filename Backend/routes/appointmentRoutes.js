@@ -5,7 +5,9 @@ const {
   getAppointmentsByDoctor,
   updateAppointmentStatus,
   getTodaysAppointments,
-  getAllAppointments
+  getAllAppointments,
+  updateAppointment,
+  deleteAppointment
 } = require('../controllers/appointmentController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 const { departmentAccessControl } = require('../middleware/abac');
@@ -49,10 +51,24 @@ router.get('/today',
 );
 
 // Update appointment status
-router.put('/:id/status',
+router.patch('/:id/status',
   authenticateToken,
   authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'),
   updateAppointmentStatus
 );
 
+
+router.put('/:id',
+  authenticateToken,
+  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'),
+  departmentAccessControl,
+  updateAppointment
+);
+
+
+router.delete('/:id',
+  authenticateToken,
+  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST'),
+  deleteAppointment
+);
 module.exports = router;

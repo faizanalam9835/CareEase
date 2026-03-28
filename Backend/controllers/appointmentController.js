@@ -304,11 +304,84 @@ const getAllAppointments = async (req, res) => {
   }
 };
 
+const updateAppointment = async (req, res) => {
+  try {
+    const appointment = await Appointment.findOne({
+      _id: req.params.id,
+      tenantId: req.user.tenantId
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    const {
+      patientId,
+      doctorId,
+      appointmentDate,
+      appointmentTime,
+      reason,
+      appointmentType,
+      status,
+      doctorNotes,
+      cancellationReason
+    } = req.body;
+
+    // update fields
+    if (patientId) appointment.patientId = patientId;
+    if (doctorId) appointment.doctorId = doctorId;
+    if (appointmentDate) appointment.appointmentDate = new Date(appointmentDate);
+    if (appointmentTime) appointment.appointmentTime = appointmentTime;
+    if (reason) appointment.reason = reason;
+    if (appointmentType) appointment.appointmentType = appointmentType;
+
+    // optional status handling
+    if (status) appointment.status = status;
+
+    if (doctorNotes) appointment.doctorNotes = doctorNotes;
+    if (cancellationReason) appointment.cancellationReason = cancellationReason;
+
+    await appointment.save();
+
+    res.json({
+      message: 'Appointment updated successfully',
+      appointment
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+const deleteAppointment = async (req, res) => {
+  try {
+    const appointment = await Appointment.findOneAndDelete({
+      _id: req.params.id,
+      tenantId: req.user.tenantId
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    res.json({
+      message: 'Appointment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 module.exports = {
   createAppointment,
   getAppointmentsByPatient,
   getAppointmentsByDoctor,
+  updateAppointment,
   updateAppointmentStatus,
   getTodaysAppointments,
-  getAllAppointments
+  getAllAppointments,
+  deleteAppointment
 };

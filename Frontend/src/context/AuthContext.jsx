@@ -52,8 +52,13 @@ export const AuthProvider = ({ children }) => {
         setTenantId(null)
     }
 
+    const hasRole = (role) => {
+    return user?.roles?.includes(role);
+     };
+
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, tenantId }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, tenantId , hasRole}}>
             {children}
         </AuthContext.Provider>
     )

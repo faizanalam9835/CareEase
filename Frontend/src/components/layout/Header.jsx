@@ -12,7 +12,6 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
     logout();
     setShowUserMenu(false);
     navigate("/login")
-    window.location.reload()
   };
 
   return (

@@ -48,4 +48,41 @@ const resend = {
   }
 };
 
-module.exports = { resend };
+
+const sendWelcomeEmail = async (user, hospitalName, temporaryPassword, tenantId) => {
+  try {
+    const result = await resend.emails.send({
+      from: `HMS <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: `Welcome to ${hospitalName}`,
+      html: `
+        <h2>Welcome to ${hospitalName}</h2>
+        <p>Hello ${user.firstName} ${user.lastName},</p>
+        <p>Your account has been created successfully.</p>
+        <p><strong>Department:</strong> ${user.department}</p>
+        <p><strong>Roles:</strong> ${Array.isArray(user.roles) ? user.roles.join(', ') : user.roles}</p>
+        <p><strong>Tenant ID:</strong> ${tenantId}</p>
+        <p><strong>Temporary Password:</strong> ${temporaryPassword}</p>
+        <p>Please login and change your password after first login.</p>
+      `
+    });
+
+    if (result.error) {
+      return {
+        success: false,
+        error: result.error
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error
+    };
+  }
+};
+module.exports = { resend  , sendWelcomeEmail };

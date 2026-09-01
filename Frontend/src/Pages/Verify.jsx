@@ -1,99 +1,138 @@
-import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import axios from 'axios'
-import Api from '../services/api'
+import { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { CircleCheck, CircleX, Copy, Check, ArrowRight, HeartPulse } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { hospitalService } from '../services';
+import { Card, Button, LoadingState } from '../components/ui';
 
-export default function Verify() {
-  const { token } = useParams()
-  const navigate = useNavigate()
+const Verify = () => {
+  const { token } = useParams();
+  const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true)
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState('')
+  const [status, setStatus] = useState('working');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  // React 18 StrictMode mounts effects twice in development. Without this guard
+  // the verification runs twice and the second call reports "already used".
+  const started = useRef(false);
 
   useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+
     if (!token) {
-      setError('Invalid verification link')
-      setLoading(false)
-      return
+      setError('This verification link is not valid.');
+      setStatus('failed');
+      return;
     }
 
-    verifyHospital()
-  }, [token])
+    hospitalService
+      .verify(token)
+      .then((data) => {
+        setResult(data);
+        setStatus('done');
+      })
+      .catch((err) => {
+        setError(err.message);
+        setStatus('failed');
+      });
+  }, [token]);
 
-  const verifyHospital = async () => {
+  const copy = async () => {
     try {
-      const res = await axios.get(
-        `https://careease-3.onrender.com/api/hospitals/verify/${token}`
-      )
-
-      console.log('VERIFY RESPONSE:', res.data)
-
-      setSuccess(true)
-      setLoading(false)
-
-      // ⏳ 3 sec baad login pe bhejo
-      setTimeout(() => {
-        navigate('/login')
-      }, 3000)
-
-    } catch (err) {
-      console.error(err)
-      setError(
-        err.response?.data?.error || 'Verification failed. Link expired.'
-      )
-      setLoading(false)
+      await navigator.clipboard.writeText(
+        `Hospital ID: ${result.hospital.tenantId}\nE-mail: ${result.adminUser.email}${
+          result.adminUser.temporaryPassword
+            ? `\nPassword: ${result.adminUser.temporaryPassword}`
+            : ''
+        }`
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy');
     }
-  }
+  };
 
-  // 🌀 LOADING STATE
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto"></div>
-          <p className="mt-4 text-cyan-700 font-medium">
-            Verifying hospital, please wait...
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // ❌ ERROR STATE
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-red-50 p-6 rounded-lg text-center max-w-md">
-          <h2 className="text-xl font-semibold text-red-600">
-            Verification Failed ❌
-          </h2>
-          <p className="mt-3 text-gray-700">{error}</p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
-          >
-            Go Home
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ✅ SUCCESS STATE
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-green-50 p-6 rounded-lg text-center max-w-md">
-        <h2 className="text-2xl font-semibold text-green-700">
-          Hospital Verified ✅
-        </h2>
-        <p className="mt-3 text-gray-700">
-          Admin account has been created successfully.
-        </p>
-        <p className="mt-2 text-sm text-gray-500">
-          Redirecting to login page...
-        </p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+      <div className="w-full max-w-lg">
+        <Link to="/" className="mb-6 flex items-center justify-center gap-2.5">
+          <span className="rounded-lg bg-cyan-600 p-1.5 text-white">
+            <HeartPulse className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <span className="text-base font-semibold text-slate-900">CareEase</span>
+        </Link>
+
+        <Card className="p-8 text-center">
+          {status === 'working' && <LoadingState label="Verifying your hospital" />}
+
+          {status === 'failed' && (
+            <>
+              <span className="mx-auto inline-flex rounded-full bg-red-50 p-3.5 text-red-600">
+                <CircleX className="h-8 w-8" aria-hidden="true" />
+              </span>
+              <h1 className="mt-5 text-xl font-semibold text-slate-900">Verification failed</h1>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{error}</p>
+              <div className="mt-6 flex justify-center gap-3">
+                <Button variant="outline" onClick={() => navigate('/hospital-register')}>
+                  Register again
+                </Button>
+                <Button onClick={() => navigate('/login')}>Go to sign in</Button>
+              </div>
+            </>
+          )}
+
+          {status === 'done' && (
+            <>
+              <span className="mx-auto inline-flex rounded-full bg-emerald-50 p-3.5 text-emerald-600">
+                <CircleCheck className="h-8 w-8" aria-hidden="true" />
+              </span>
+              <h1 className="mt-5 text-xl font-semibold text-slate-900">
+                {result.hospital.name} is active
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Your administrator account is ready. Sign in and change the password straight away.
+              </p>
+
+              <dl className="mt-6 space-y-2.5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Hospital ID</dt>
+                  <dd className="font-mono font-semibold text-slate-900">
+                    {result.hospital.tenantId}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">E-mail</dt>
+                  <dd className="break-all font-medium text-slate-900">{result.adminUser.email}</dd>
+                </div>
+                {result.adminUser.temporaryPassword && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-slate-500">Temporary password</dt>
+                    <dd className="font-mono font-semibold text-slate-900">
+                      {result.adminUser.temporaryPassword}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Button variant="outline" icon={copied ? Check : Copy} onClick={copy}>
+                  {copied ? 'Copied' : 'Copy details'}
+                </Button>
+                <Button onClick={() => navigate('/login')}>
+                  Sign in
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </>
+          )}
+        </Card>
       </div>
     </div>
-  )
-}
+  );
+};
+
+export default Verify;

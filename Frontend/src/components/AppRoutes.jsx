@@ -1,136 +1,104 @@
-import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import React, { Suspense } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import Layout from './layout/Layout';
+import ProtectedRoute from './layout/ProtectedRoute';
+import { LoadingState } from './ui';
+import { HOME_PATH } from '../lib/navigation';
 
-import Login from '../Pages/auth/Login'
-import LandingPage from '../Pages/LandingPage'
-import HospitalRegister from '../Pages/auth/HospitalRegister'
-import Verify from '../Pages/Verify'
+import LandingPage from '../Pages/LandingPage';
+import Login from '../Pages/auth/Login';
+import HospitalRegister from '../Pages/auth/HospitalRegister';
+import Verify from '../Pages/Verify';
 
-import ProtectedRoute from '../components/layout/ProtectedRoute'
-import Layout from '../components/layout/Layout'
+// Everything behind the sign-in is loaded on demand, so the landing page and
+// login screen stay small.
+const Dashboard = React.lazy(() => import('../Pages/dashboard/Dashboard'));
+const Patients = React.lazy(() => import('../Pages/patients/Patients'));
+const Appointments = React.lazy(() => import('../Pages/appointments/Appointments'));
+const Prescriptions = React.lazy(() => import('../Pages/prescriptions/Prescriptions'));
+const Pharmacy = React.lazy(() => import('../Pages/pharmacy/Pharmacy'));
+const Billing = React.lazy(() => import('../Pages/billing/Billing'));
+const StaffManagement = React.lazy(() => import('../Pages/staff/StaffManagement'));
+const Wards = React.lazy(() => import('../Pages/wards/Wards'));
+const Reports = React.lazy(() => import('../Pages/reports/Reports'));
+const Profile = React.lazy(() => import('../Pages/profile/Profile'));
+const HospitalSettings = React.lazy(() => import('../Pages/settings/HospitalSettings'));
 
-// Lazy components
-const AdminDashboard = React.lazy(() => import('../Pages/dashboard/AdminDashboard'))
-const UserManagement = React.lazy(() => import('../Pages/Admin/UserManagement/UserManagement'))
-const Patients = React.lazy(() => import('../Pages/patients/Patients'))
-const Appointments = React.lazy(() => import('../Pages/appointments/Appointments'))
-const Prescriptions = React.lazy(() => import('../Pages/prescriptions/Prescriptions'))
-const Pharmacy = React.lazy(() => import('../Pages/pharmacy/Pharmacy'))
-const Billing = React.lazy(() => import('../Pages/billing/Billing'))
+const Lazy = ({ children }) => (
+  <Suspense fallback={<LoadingState label="Loading page" className="py-24" />}>{children}</Suspense>
+);
+
+const guard = (roles, element) => (
+  <ProtectedRoute allowedRoles={roles}>
+    <Lazy>{element}</Lazy>
+  </ProtectedRoute>
+);
+
+const CLINICAL = ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST'];
+const EVERYONE = [...CLINICAL, 'PHARMACIST'];
 
 const AppRoutes = () => {
-  const { user, loading } = useAuth()
-    console.log("🔥 AppRoutes mounted")
-  if (loading) return <Loader />
-  console.log("AUTH USER:", user)
+  const { user, loading } = useAuth();
+
+  // Waiting for the stored session to be revalidated. Rendering the routes
+  // first would bounce an already-signed-in user to /login on every refresh.
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <LoadingState label="Starting CareEase" />
+      </div>
+    );
+  }
+
   return (
     <Routes>
-    
-      {/* 🌍 PUBLIC ROUTES */}
+      {/* Public */}
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={!user ? <Login /> : <Navigate to="/app/dashboard" />} />
-      <Route path="/hospital-register" element={<HospitalRegister />} />
+      <Route path="/login" element={user ? <Navigate to={HOME_PATH} replace /> : <Login />} />
+      <Route
+        path="/hospital-register"
+        element={user ? <Navigate to={HOME_PATH} replace /> : <HospitalRegister />}
+      />
       <Route path="/verify/:token" element={<Verify />} />
 
-      {/* 🔐 PROTECTED ROUTES */}
-      <Route
-        path="/app"
-        element={user ? <Layout /> : <Navigate to="/login" replace />}
-      >
-
-        <Route
-          path="dashboard"
-          element={
-            <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST']}>
-              <React.Suspense fallback={<Loader />}>
-                <AdminDashboard />
-              </React.Suspense>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="admin/users"
-          element={
-            <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR']}>
-              <React.Suspense fallback={<Loader />}>
-                <UserManagement />
-              </React.Suspense>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="patients"
-          element={
-            <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST']}>
-              <React.Suspense fallback={<Loader />}>
-                <Patients />
-              </React.Suspense>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="appointments"
-          element={
-            <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST']}>
-              <React.Suspense fallback={<Loader />}>
-                <Appointments />
-              </React.Suspense>
-            </ProtectedRoute>
-          }
-        />
-
+      {/* Signed in */}
+      <Route path="/app" element={user ? <Layout /> : <Navigate to="/login" replace />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={guard(EVERYONE, <Dashboard />)} />
+        <Route path="patients" element={guard(CLINICAL, <Patients />)} />
+        <Route path="appointments" element={guard(CLINICAL, <Appointments />)} />
         <Route
           path="prescriptions"
-          element={
-            <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'DOCTOR', 'PHARMACIST']}>
-              <React.Suspense fallback={<Loader />}>
-                <Prescriptions />
-              </React.Suspense>
-            </ProtectedRoute>
-          }
+          element={guard(['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'PHARMACIST'], <Prescriptions />)}
         />
-
         <Route
           path="pharmacy"
-          element={
-            <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'PHARMACIST']}>
-              <React.Suspense fallback={<Loader />}>
-                <Pharmacy />
-              </React.Suspense>
-            </ProtectedRoute>
-          }
+          element={guard(['HOSPITAL_ADMIN', 'PHARMACIST', 'DOCTOR'], <Pharmacy />)}
         />
-
         <Route
           path="billing"
-          element={
-            <ProtectedRoute allowedRoles={['HOSPITAL_ADMIN', 'RECEPTIONIST']}>
-              <React.Suspense fallback={<Loader />}>
-                <Billing />
-              </React.Suspense>
-            </ProtectedRoute>
-          }
+          element={guard(['HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR', 'PHARMACIST'], <Billing />)}
         />
+        <Route path="wards" element={guard(CLINICAL, <Wards />)} />
+        <Route
+          path="reports"
+          element={guard(['HOSPITAL_ADMIN', 'RECEPTIONIST'], <Reports />)}
+        />
+        <Route path="staff" element={guard(['HOSPITAL_ADMIN'], <StaffManagement />)} />
+        <Route path="settings" element={guard(['HOSPITAL_ADMIN'], <HospitalSettings />)} />
+        <Route path="profile" element={guard(EVERYONE, <Profile />)} />
 
-        {/* 🔁 Protected fallback */}
+        {/* The old build linked to /app/admin/users; keep those URLs alive. */}
+        <Route path="admin/users" element={<Navigate to="/app/staff" replace />} />
+        <Route path="admin/settings" element={<Navigate to="/app/settings" replace />} />
+
         <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
       </Route>
 
-      {/* 🌐 Global fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
-
     </Routes>
-  )
-}
+  );
+};
 
-const Loader = () => (
-  <div className="flex justify-center items-center min-h-screen">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-600"></div>
-  </div>
-)
-
-export default AppRoutes
+export default AppRoutes;

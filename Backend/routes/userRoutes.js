@@ -1,21 +1,28 @@
 const express = require('express');
-const { createUser, getAllUsers, getUserById, updateUser ,deleteUser } = require('../controllers/userController');
+const {
+  createUser,
+  getAllUsers,
+  getDoctors,
+  getUserById,
+  updateUser,
+  resetUserPassword,
+  deleteUser
+} = require('../controllers/userController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Only Hospital Admin can create users
-router.post('/', authenticateToken, authorizeRoles('HOSPITAL_ADMIN'), createUser);
+router.use(authenticateToken);
 
-// Hospital Admin can see all users, others see limited info
-router.get('/', authenticateToken, getAllUsers);
+// Every signed-in user needs the doctor list to book appointments.
+router.get('/doctors', getDoctors);
 
-// Get specific user
-router.get('/:id', authenticateToken, getUserById);
+router.get('/', getAllUsers);
+router.get('/:id', getUserById);
 
-// Update user
-router.put('/:id', authenticateToken, authorizeRoles('HOSPITAL_ADMIN'), updateUser);
-
-router.delete('/:id', authenticateToken, authorizeRoles('HOSPITAL_ADMIN'), deleteUser);
+router.post('/', authorizeRoles('HOSPITAL_ADMIN'), createUser);
+router.put('/:id', authorizeRoles('HOSPITAL_ADMIN'), updateUser);
+router.post('/:id/reset-password', authorizeRoles('HOSPITAL_ADMIN'), resetUserPassword);
+router.delete('/:id', authorizeRoles('HOSPITAL_ADMIN'), deleteUser);
 
 module.exports = router;

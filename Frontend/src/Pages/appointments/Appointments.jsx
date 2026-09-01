@@ -1,496 +1,447 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import {
+  CalendarDays,
   Plus,
-  RefreshCw,
-  User,
-  Stethoscope,
-  Trash,
-  X,
+  Search,
   Pencil,
-  ChevronDown
+  Trash2,
+  RefreshCw,
+  Clock,
+  CircleCheck,
+  CircleX,
+  Receipt,
+  CalendarCheck,
+  CalendarClock,
+  User
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { appointmentService, billingService } from '../../services';
+import { useMeta } from '../../hooks/useMeta';
+import { useDebounce } from '../../hooks/useDebounce';
+import AppointmentForm from './AppointmentForm';
+import StatsCard from '../../components/shared/StatsCard';
+import {
+  Card,
+  Table,
+  Td,
+  Badge,
+  Button,
+  Select,
+  Input,
+  Avatar,
+  PageHeader,
+  Pagination,
+  LoadingState,
+  ErrorState,
+  EmptyState,
+  ConfirmDialog,
+  Modal,
+  Textarea
+} from '../../components/ui';
+import { formatDate, formatTime, APPOINTMENT_TONE } from '../../lib/format';
 
-const API_BASE_URL = 'https://careease-3.onrender.com/api';
+const COLUMNS = [
+  { key: 'when', label: 'When' },
+  { key: 'patient', label: 'Patient' },
+  { key: 'doctor', label: 'Doctor' },
+  { key: 'reason', label: 'Reason' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: '', align: 'right' }
+];
 
-/* ================= API ================= */
-const apiCall = async (endpoint, options = {}) => {
-  try {
-    const token = localStorage.getItem("authToken");
+const Appointments = () => {
+  const { hasRole, isAdmin, isDoctor } = useAuth();
+  const { meta } = useMeta();
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      ...options
-    });
+  const [state, setState] = useState({ appointments: [], meta: null, statusCounts: {} });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-    const data = await res.json();
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState({ status: 'All', date: '' });
+  const [page, setPage] = useState(1);
 
-    if (!res.ok) throw new Error(data.error || "Something went wrong");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [working, setWorking] = useState(false);
 
-    return { success: true, data };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-};
+  const debouncedSearch = useDebounce(search);
+  const canBook = hasRole(['HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR']);
+  const canBill = hasRole(['HOSPITAL_ADMIN', 'RECEPTIONIST']);
 
-/* ================= CONFIRM MODAL ================= */
-const ConfirmModal = ({ open, title, message, onConfirm, onCancel }) => {
-  if (!open) return null;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await appointmentService.list({
+        status: filters.status,
+        date: filters.date || undefined,
+        page,
+        limit: 20
+      });
+      setState({
+        appointments: data.appointments,
+        meta: data.meta,
+        statusCounts: data.statusCounts || {}
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, page]);
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-lg space-y-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="text-sm text-gray-600">{message}</p>
+  useEffect(() => {
+    load();
+  }, [load]);
 
-        <div className="flex justify-end gap-3 pt-2">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-          >
-            Cancel
-          </button>
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
 
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ================= MODAL ================= */
-const CreateModal = ({ onClose, onSubmit, editData }) => {
-  const isEdit = !!editData;
-
-  const [form, setForm] = useState({
-    patientId: '',
-    doctorId: '',
-    appointmentDate: '',
-    appointmentTime: '',
-    reason: '',
-    appointmentType: 'OPD'
+  // Name search runs on the loaded page; the server handles the heavy filters.
+  const visible = state.appointments.filter((appointment) => {
+    if (!debouncedSearch) return true;
+    const term = debouncedSearch.toLowerCase();
+    const patient = `${appointment.patientId?.firstName || ''} ${appointment.patientId?.lastName || ''}`;
+    const doctor = `${appointment.doctorId?.firstName || ''} ${appointment.doctorId?.lastName || ''}`;
+    return (
+      patient.toLowerCase().includes(term) ||
+      doctor.toLowerCase().includes(term) ||
+      appointment.appointmentId?.toLowerCase().includes(term) ||
+      appointment.reason?.toLowerCase().includes(term)
+    );
   });
 
-  const [doctors, setDoctors] = useState([]);
-  const [patients, setPatients] = useState([]);
-  const [filteredPatients, setFilteredPatients] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (editData) {
-      setForm({
-        patientId: editData.patientId?._id || '',
-        doctorId: editData.doctorId?._id || '',
-        appointmentDate: editData.appointmentDate?.slice(0, 10) || '',
-        appointmentTime: editData.appointmentTime || '',
-        reason: editData.reason || '',
-        appointmentType: editData.appointmentType || 'OPD'
-      });
-    }
-  }, [editData]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("authToken");
-
-        const [docRes, patRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/users`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(`${API_BASE_URL}/patients`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        ]);
-
-        const docData = await docRes.json();
-        const patData = await patRes.json();
-
-        setDoctors((docData.users || []).filter(u => u.roles?.includes('DOCTOR')));
-        setPatients(patData.patients || []);
-      } catch {
-        toast.error("Error loading data");
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (!form.doctorId) return;
-
-    const selectedDoctor = doctors.find(d => d._id === form.doctorId);
-    const dept = selectedDoctor?.department?.toLowerCase() || '';
-
-    const matched = patients.filter(
-      p => p.department?.toLowerCase() === dept
-    );
-
-    setFilteredPatients(matched);
-  }, [form.doctorId, doctors, patients]);
-
-  const submit = async (e) => {
-    e.preventDefault();
-
-    if (!form.doctorId || !form.patientId) {
-      toast.error("Doctor and Patient are required");
+  const setStatus = async (appointment, status) => {
+    // Cancelling needs a reason, so it goes through its own dialog.
+    if (status === 'Cancelled') {
+      setCancelling(appointment);
+      setCancelReason('');
       return;
     }
-
-    setSubmitting(true);
-
-    const endpoint = isEdit
-      ? `/appointments/${editData._id}`
-      : `/appointments`;
-
-    const method = isEdit ? 'PUT' : 'POST';
-
-    const res = await apiCall(endpoint, {
-      method,
-      body: JSON.stringify(form)
-    });
-
-    setSubmitting(false);
-
-    if (res.success) {
-      toast.success(isEdit ? "Updated" : "Created");
-      onSubmit();
-      onClose();
-    } else {
-      toast.error(res.error);
+    try {
+      const result = await appointmentService.setStatus(appointment._id, { status });
+      toast.success(result.message);
+      setState((current) => ({
+        ...current,
+        appointments: current.appointments.map((entry) =>
+          entry._id === appointment._id ? { ...entry, status } : entry
+        )
+      }));
+    } catch (err) {
+      toast.error(err.message);
     }
   };
+
+  const confirmCancel = async () => {
+    if (!cancelReason.trim()) {
+      toast.error('Please give a reason');
+      return;
+    }
+    setWorking(true);
+    try {
+      await appointmentService.setStatus(cancelling._id, {
+        status: 'Cancelled',
+        cancellationReason: cancelReason
+      });
+      toast.success('Appointment cancelled');
+      setCancelling(null);
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const remove = async () => {
+    setWorking(true);
+    try {
+      await appointmentService.remove(confirm._id);
+      toast.success('Appointment deleted');
+      setConfirm(null);
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const raiseInvoice = async (appointment) => {
+    try {
+      const result = await billingService.createFromAppointment(appointment._id, {});
+      toast.success(`${result.invoice.invoiceId} created`);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const counts = state.statusCounts;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <form
-        onSubmit={submit}
-        className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 shadow-lg"
-      >
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">
-            {isEdit ? "Update Appointment" : "Create Appointment"}
-          </h2>
-          <X className="cursor-pointer" onClick={onClose} />
-        </div>
-
-        <select
-          className="w-full h-10 px-3 rounded-lg bg-gray-50"
-          value={form.doctorId}
-          onChange={(e) => setForm({ ...form, doctorId: e.target.value })}
-        >
-          <option value="">Select Doctor</option>
-          {doctors.map(doc => (
-            <option key={doc._id} value={doc._id}>
-              {doc.firstName} ({doc.department})
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="w-full h-10 px-3 rounded-lg bg-gray-50"
-          value={form.patientId}
-          onChange={(e) => setForm({ ...form, patientId: e.target.value })}
-        >
-          <option value="">Select Patient</option>
-          {filteredPatients.map(p => (
-            <option key={p._id} value={p._id}>
-              {p.firstName}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="date"
-          className="w-full h-10 px-3 rounded-lg bg-gray-50"
-          value={form.appointmentDate}
-          onChange={(e) => setForm({ ...form, appointmentDate: e.target.value })}
-        />
-
-        <input
-          type="time"
-          className="w-full h-10 px-3 rounded-lg bg-gray-50"
-          value={form.appointmentTime}
-          onChange={(e) => setForm({ ...form, appointmentTime: e.target.value })}
-        />
-
-        <input
-          placeholder="Reason"
-          className="w-full h-10 px-3 rounded-lg bg-gray-50"
-          value={form.reason}
-          onChange={(e) => setForm({ ...form, reason: e.target.value })}
-        />
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-cyan-600 text-white py-2 rounded-lg hover:bg-cyan-700 disabled:opacity-50"
-        >
-          {submitting ? "Processing..." : isEdit ? "Update" : "Create"}
-        </button>
-      </form>
-    </div>
-  );
-};
-
-/* ================= MAIN ================= */
-const Appointments = () => {
-  const { hasRole } = useAuth();
-
-  const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [showCreate, setShowCreate] = useState(false);
-  const [editData, setEditData] = useState(null);
-
-  /* delete modal state */
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
-
-  const fetchAppointments = async () => {
-    setLoading(true);
-
-    const res = await apiCall('/appointments');
-
-    if (res.success) {
-      setAppointments(res.data.appointments || []);
-    } else {
-      toast.error(res.error);
-    }
-
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
-
-const updateStatus = async (id, status) => {
-  console.log("Updating:", id, status);
-
-  const res = await apiCall(`/appointments/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status })
-  });
-
-  console.log("API Response:", res);
-
-  if (res.success) {
-    toast.success("Updated");
-
-    setAppointments(prev =>
-      prev.map(a =>
-        a._id === id ? { ...a, status } : a
-      )
-    );
-  } else {
-    toast.error(res.error);
-  }
-};
-
-  /* open confirm modal */
-  const handleDeleteClick = (id) => {
-    setDeleteId(id);
-    setConfirmOpen(true);
-  };
-
-  /* actual delete */
-  const deleteAppointment = async () => {
-    const res = await apiCall(`/appointments/${deleteId}`, {
-      method: 'DELETE'
-    });
-
-    if (res.success) {
-      toast.success("Deleted");
-      fetchAppointments();
-    } else {
-      toast.error(res.error);
-    }
-
-    setConfirmOpen(false);
-    setDeleteId(null);
-  };
-
-  const filtered = useMemo(() => {
-    return appointments.filter(a => {
-      const patientName = a.patientId?.firstName?.toLowerCase() || '';
-      const doctorName = a.doctorId?.firstName?.toLowerCase() || '';
-
-      return (
-        (patientName.includes(searchTerm.toLowerCase()) ||
-          doctorName.includes(searchTerm.toLowerCase())) &&
-        (statusFilter === 'ALL' || a.status === statusFilter)
-      );
-    });
-  }, [appointments, searchTerm, statusFilter]);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Scheduled': return 'bg-yellow-100 text-yellow-700';
-      case 'Completed': return 'bg-green-100 text-green-700';
-      case 'Cancelled': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-96">
-        <div className="animate-spin h-10 w-10 border-b-2 border-cyan-600 rounded-full"></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Appointments</h1>
-
-        <div className="flex gap-2">
-          <button onClick={fetchAppointments} className="p-2 bg-white rounded-lg shadow-sm">
-            <RefreshCw className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={() => {
-              setEditData(null);
-              setShowCreate(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg"
-          >
-            <Plus className="h-4 w-4" />
-            New
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white p-4 rounded-2xl shadow-sm flex gap-3">
-        <input
-          placeholder="Search..."
-          className="flex-1 h-10 px-3 rounded-lg bg-gray-50"
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-
-        <select
-          className="h-10 px-3 rounded-lg bg-gray-50"
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="ALL">All</option>
-          <option>Scheduled</option>
-          <option>Completed</option>
-          <option>Cancelled</option>
-        </select>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="p-4 text-left">Patient</th>
-              <th className="p-4 text-left">Doctor</th>
-              <th className="p-4 text-left">Date</th>
-              <th className="p-4 text-left">Time</th>
-              <th className="p-4 text-left">Status</th>
-              <th className="p-4 text-left">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filtered.map(a => (
-              <tr key={a._id} className="hover:bg-gray-50">
-
-                <td className="p-4">
-                  <User className="inline h-4 w-4 mr-1 text-cyan-600" />
-                  {a.patientId?.firstName}
-                </td>
-
-                <td className="p-4">
-                  <Stethoscope className="inline h-4 w-4 mr-1 text-blue-600" />
-                  {a.doctorId?.firstName}
-                </td>
-
-                <td className="p-4">
-                  {a.appointmentDate
-                    ? new Date(a.appointmentDate).toDateString()
-                    : '-'}
-                </td>
-
-                <td className="p-4">{a.appointmentTime}</td>
-
-                <td className="p-4">
-                  <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(a.status)}`}>
-                    {a.status}
-                  </span>
-                </td>
-
-                <td className="p-4 flex items-center gap-2">
-
-                  <button onClick={() => {
-                    setEditData(a);
-                    setShowCreate(true);
-                  }}>
-                    <Pencil className="h-4 w-4 text-blue-600" />
-                  </button>
-
-                  <div className="relative">
-                    <select
-                      value={a.status}
-                      onChange={(e) => updateStatus(a._id, e.target.value)}
-                      className="appearance-none h-8 px-3 pr-8 rounded-lg bg-gray-100 text-xs"
-                    >
-                      <option value="Scheduled">Scheduled</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-
-                    <ChevronDown className="h-4 w-4 absolute right-2 top-2 pointer-events-none text-gray-500" />
-                  </div>
-
-                  {hasRole('HOSPITAL_ADMIN') && (
-                    <Trash
-                      onClick={() => handleDeleteClick(a._id)}
-                      className="text-gray-600 cursor-pointer"
-                    />
-                  )}
-
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* CREATE/EDIT MODAL */}
-      {showCreate && (
-        <CreateModal
-          onClose={() => setShowCreate(false)}
-          onSubmit={fetchAppointments}
-          editData={editData}
-        />
-      )}
-
-      {/* CONFIRM DELETE MODAL */}
-      <ConfirmModal
-        open={confirmOpen}
-        title="Delete Appointment"
-        message="Are you sure you want to delete this appointment? This action cannot be undone."
-        onCancel={() => setConfirmOpen(false)}
-        onConfirm={deleteAppointment}
+    <>
+      <PageHeader
+        title="Appointments"
+        subtitle={isDoctor ? 'Your diary' : 'Bookings across the hospital'}
+        icon={CalendarDays}
+        actions={
+          <>
+            <Button variant="outline" icon={RefreshCw} onClick={load} />
+            {canBook && (
+              <Button
+                icon={Plus}
+                onClick={() => {
+                  setEditing(null);
+                  setFormOpen(true);
+                }}
+              >
+                Book appointment
+              </Button>
+            )}
+          </>
+        }
       />
 
-    </div>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatsCard
+          icon={CalendarClock}
+          label="Scheduled"
+          value={(counts.Scheduled || 0) + (counts.Confirmed || 0)}
+          tone="blue"
+        />
+        <StatsCard icon={CircleCheck} label="Completed" value={counts.Completed || 0} tone="green" />
+        <StatsCard icon={CircleX} label="Cancelled" value={counts.Cancelled || 0} tone="rose" />
+        <StatsCard icon={Clock} label="In progress" value={counts['In Progress'] || 0} tone="amber" />
+      </div>
+
+      <Card className="mb-6">
+        <div className="flex flex-wrap items-end gap-3 p-4">
+          <div className="relative min-w-[220px] flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by patient, doctor or reference"
+              aria-label="Search appointments"
+              className="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3 text-sm placeholder-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100"
+            />
+          </div>
+          <Select
+            className="w-40"
+            value={filters.status}
+            onChange={(event) => setFilters((f) => ({ ...f, status: event.target.value }))}
+            options={['All', ...meta.appointmentStatuses]}
+          />
+          <Input
+            type="date"
+            className="w-44"
+            value={filters.date}
+            onChange={(event) => setFilters((f) => ({ ...f, date: event.target.value }))}
+          />
+          {(filters.date || filters.status !== 'All') && (
+            <Button variant="ghost" onClick={() => setFilters({ status: 'All', date: '' })}>
+              Clear
+            </Button>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        {loading ? (
+          <LoadingState label="Loading appointments" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : visible.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title={search || filters.date ? 'No matching appointments' : 'No appointments yet'}
+            message={
+              search || filters.date
+                ? 'Try clearing the filters.'
+                : 'Book the first appointment to get started.'
+            }
+            action={
+              canBook && (
+                <Button
+                  icon={Plus}
+                  onClick={() => {
+                    setEditing(null);
+                    setFormOpen(true);
+                  }}
+                >
+                  Book appointment
+                </Button>
+              )
+            }
+          />
+        ) : (
+          <>
+            <Table columns={COLUMNS}>
+              {visible.map((appointment) => (
+                <tr key={appointment._id} className="transition-colors hover:bg-slate-50">
+                  <Td>
+                    <p className="font-medium text-slate-900">
+                      {formatDate(appointment.appointmentDate)}
+                    </p>
+                    <p className="flex items-center gap-1 text-xs text-slate-400">
+                      <Clock className="h-3 w-3" aria-hidden="true" />
+                      {formatTime(appointment.appointmentTime)} — {appointment.durationMinutes} min
+                    </p>
+                  </Td>
+                  <Td>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar
+                        name={`${appointment.patientId?.firstName || ''} ${appointment.patientId?.lastName || ''}`}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-900">
+                          {appointment.patientId?.firstName} {appointment.patientId?.lastName}
+                        </p>
+                        <p className="truncate font-mono text-xs text-slate-400">
+                          {appointment.appointmentId}
+                        </p>
+                      </div>
+                    </div>
+                  </Td>
+                  <Td>
+                    <p className="text-sm text-slate-800">
+                      Dr. {appointment.doctorId?.firstName} {appointment.doctorId?.lastName}
+                    </p>
+                    <p className="text-xs text-slate-400">{appointment.department}</p>
+                  </Td>
+                  <Td>
+                    <p className="max-w-[220px] truncate text-sm">{appointment.reason}</p>
+                    <Badge tone="slate" className="mt-1">
+                      {appointment.appointmentType}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <select
+                      value={appointment.status}
+                      onChange={(event) => setStatus(appointment, event.target.value)}
+                      aria-label={`Status of ${appointment.appointmentId}`}
+                      className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-200"
+                    >
+                      {meta.appointmentStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    <Badge
+                      tone={APPOINTMENT_TONE[appointment.status] || 'slate'}
+                      className="mt-1.5"
+                    >
+                      {appointment.paymentStatus}
+                    </Badge>
+                  </Td>
+                  <Td className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {canBill && appointment.status === 'Completed' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={Receipt}
+                          aria-label="Raise invoice"
+                          onClick={() => raiseInvoice(appointment)}
+                        />
+                      )}
+                      {canBook && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={Pencil}
+                          aria-label="Edit"
+                          onClick={() => {
+                            setEditing(appointment);
+                            setFormOpen(true);
+                          }}
+                        />
+                      )}
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={Trash2}
+                          aria-label="Delete"
+                          className="text-red-500 hover:bg-red-50"
+                          onClick={() => setConfirm(appointment)}
+                        />
+                      )}
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+
+            <Pagination
+              page={state.meta?.page || 1}
+              totalPages={state.meta?.totalPages || 1}
+              total={state.meta?.total}
+              label="appointments"
+              onChange={setPage}
+            />
+          </>
+        )}
+      </Card>
+
+      <AppointmentForm
+        open={formOpen}
+        appointment={editing}
+        meta={meta}
+        onClose={() => setFormOpen(false)}
+        onSaved={load}
+      />
+
+      <Modal
+        open={Boolean(cancelling)}
+        onClose={() => setCancelling(null)}
+        title="Cancel this appointment"
+        subtitle={cancelling?.appointmentId}
+        icon={CircleX}
+        size="sm"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setCancelling(null)} disabled={working}>
+              Keep it
+            </Button>
+            <Button variant="danger" onClick={confirmCancel} loading={working}>
+              Cancel appointment
+            </Button>
+          </>
+        }
+      >
+        <Textarea
+          label="Why is it being cancelled?"
+          required
+          rows={3}
+          value={cancelReason}
+          placeholder="Patient asked to reschedule"
+          onChange={(event) => setCancelReason(event.target.value)}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        loading={working}
+        title="Delete this appointment?"
+        message={`${confirm?.appointmentId} will be removed permanently. To keep the record, mark it cancelled instead.`}
+        confirmLabel="Delete"
+        onClose={() => setConfirm(null)}
+        onConfirm={remove}
+      />
+    </>
   );
 };
 

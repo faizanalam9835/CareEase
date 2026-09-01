@@ -2,46 +2,34 @@ const express = require('express');
 const {
   addMedicine,
   getAllMedicines,
-  updateMedicineStock,
+  getMedicineById,
   getLowStockMedicines,
+  getExpiringMedicines,
+  updateMedicine,
+  updateMedicineStock,
+  deleteMedicine,
   dispensePrescription
 } = require('../controllers/pharmacyController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Add medicine (Pharmacist & Admin only)
-router.post('/medicines',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'),
-  addMedicine
-);
+router.use(authenticateToken);
 
-// Get all medicines
-router.get('/medicines',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST', 'DOCTOR'),
-  getAllMedicines
-);
+// Doctors and nurses need to see what is in stock before prescribing.
+router.get('/medicines/low-stock', authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'), getLowStockMedicines);
+router.get('/medicines/expiring', authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'), getExpiringMedicines);
+router.get('/medicines', getAllMedicines);
+router.get('/medicines/:id', getMedicineById);
 
-// Get low stock medicines
-router.get('/medicines/low-stock',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'),
-  getLowStockMedicines
-);
+router.post('/medicines', authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'), addMedicine);
+router.put('/medicines/:id', authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'), updateMedicine);
+router.put('/medicines/:id/stock', authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'), updateMedicineStock);
+router.delete('/medicines/:id', authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'), deleteMedicine);
 
-// Update medicine stock
-router.put('/medicines/:id/stock',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'PHARMACIST'),
-  updateMedicineStock
-);
-
-// Dispense prescription
-router.post('/prescriptions/:prescriptionId/dispense',
-  authenticateToken,
-  authorizeRoles('PHARMACIST'),
+router.post(
+  '/prescriptions/:prescriptionId/dispense',
+  authorizeRoles('PHARMACIST', 'HOSPITAL_ADMIN'),
   dispensePrescription
 );
 

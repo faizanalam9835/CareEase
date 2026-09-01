@@ -6,6 +6,8 @@ import {
   ClipboardList,
   Pill,
   Ambulance,
+  BarChart3,
+  Zap,
 } from "lucide-react";
 
 const services = [
@@ -116,7 +118,7 @@ export default function Services() {
             <div className="absolute top-8 -left-4 bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl p-5 border border-white/20 hover:bg-white transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg">
-                  <span className="text-xl">📊</span>
+                  <BarChart3 className="w-5 h-5 text-cyan-700" aria-hidden="true" />
                 </div>
                 <div>
                   <p className="text-gray-900">15+ Departments</p>
@@ -129,7 +131,7 @@ export default function Services() {
             <div className="absolute bottom-8 -right-4 bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl p-5 border border-white/20 hover:bg-white transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400 to-orange-500 shadow-lg">
-                  <span className="text-xl">⚡</span>
+                  <Zap className="w-5 h-5 text-cyan-700" aria-hidden="true" />
                 </div>
                 <div>
                   <p className="text-gray-900">Real-Time Sync</p>

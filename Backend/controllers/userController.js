@@ -1,262 +1,322 @@
 const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const { generateToken } = require('../utils/generateToken');
-const { sendWelcomeEmail }= require("../utils/resendClient")
+const Hospital = require('../models/Hospital');
+const Appointment = require('../models/Appointment');
+const { ApiError, asyncHandler } = require('../utils/apiError');
+const { generateTemporaryPassword, isStrongPassword, PASSWORD_POLICY } = require('../utils/generateToken');
+const { sendMailAsync } = require('../utils/mailer');
+const templates = require('../utils/emailTemplates');
+const { logActivity } = require('../utils/activityLog');
+const { getPagination, buildMeta, escapeRegex } = require('../utils/pagination');
+const { ROLES, DEPARTMENTS } = require('../config/constants');
 
-const createUser = async (req, res) => {
-  console.log('🔥 createUser function hit!')
-  try {
-    const { 
-      firstName, 
-      lastName, 
-      email, 
-      professionalemail,
-      phone, 
-      password, 
-      department, 
-      roles 
-    } = req.body;
+/** POST /api/users - hospital admin creates a staff account. */
+const createUser = asyncHandler(async (req, res) => {
+  const {
+    firstName,
+    lastName,
+    email,
+    professionalEmail,
+    phone,
+    password,
+    department,
+    designation,
+    specialization,
+    consultationFee,
+    roles
+  } = req.body;
 
-    // Validation
-    if (!firstName || !lastName || !email || !professionalemail || !phone || !department || !roles) {
-      return res.status(400).json({
-        error: 'All fields are required'
-      });
-    }
+  if (!firstName || !lastName || !email || !phone || !department || !roles?.length) {
+    throw ApiError.badRequest(
+      'First name, last name, e-mail, phone, department and at least one role are required'
+    );
+  }
 
-    // Check existing user
-    const existingUser = await User.findOne({ 
-      $or: [
-        { email: email.toLowerCase(), tenantId: req.user.tenantId },
-        { professionalemail: professionalemail?.toLowerCase(), tenantId: req.user.tenantId }
-      ]
-    });
+  const roleList = Array.isArray(roles) ? roles : [roles];
+  const invalidRole = roleList.find((role) => !ROLES.includes(role));
+  if (invalidRole) throw ApiError.badRequest(`"${invalidRole}" is not a valid role`);
+  if (!DEPARTMENTS.includes(department)) {
+    throw ApiError.badRequest(`"${department}" is not a valid department`);
+  }
 
-    // if (existingUser) {
-    //   return res.status(400).json({
-    //     error: 'User with this email already exists'
-    //   });
-    // }
+  const normalisedEmail = String(email).toLowerCase().trim();
 
-    // ✅ Auto-generate password if not provided
-    const autoPassword = password || generateTemporaryPassword();
-    console.log('🔑 Generated temporary password:', autoPassword);
+  // The original code queried for a duplicate and then ignored the result,
+  // so the request died later with a raw Mongo E11000 error.
+  const duplicate = await User.findOne({ email: normalisedEmail, tenantId: req.user.tenantId });
+  if (duplicate) {
+    throw ApiError.conflict('Someone at this hospital already uses that e-mail address');
+  }
 
-    const hashedPassword = await bcrypt.hash(autoPassword, 12);
-    console.log('🔐 Hashed password ready')
+  if (password && !isStrongPassword(password)) {
+    throw ApiError.badRequest(PASSWORD_POLICY);
+  }
 
-    // Create new user
-    const newUser = new User({
-      firstName,
-      lastName,
-      email: email.toLowerCase(),
-      professionalemail: professionalemail?.toLowerCase() || email.toLowerCase(),
-      phone,
-      password: hashedPassword,
-      department,
-      roles: Array.isArray(roles) ? roles : [roles],
+  const temporaryPassword = password || generateTemporaryPassword();
+
+  const user = await User.create({
+    firstName,
+    lastName,
+    email: normalisedEmail,
+    professionalEmail: professionalEmail ? String(professionalEmail).toLowerCase().trim() : normalisedEmail,
+    phone,
+    password: temporaryPassword,
+    department,
+    designation,
+    specialization,
+    consultationFee: roleList.includes('DOCTOR') ? consultationFee ?? 500 : 0,
+    roles: roleList,
+    tenantId: req.user.tenantId,
+    status: 'ACTIVE',
+    // Generated passwords must be replaced; an admin-chosen one need not be.
+    mustChangePassword: !password
+  });
+
+  const hospital = await Hospital.findOne({ tenantId: req.user.tenantId });
+  const mail = templates.staffWelcome({
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    department: user.department,
+    roles: user.roles,
+    hospitalName: hospital?.name || 'CareEase Hospital',
+    tenantId: user.tenantId,
+    temporaryPassword
+  });
+  sendMailAsync({ to: user.professionalEmail || user.email, ...mail });
+
+  logActivity({
+    user: req.user,
+    action: 'USER_CREATED',
+    entityType: 'USER',
+    entityId: user._id,
+    description: `Created ${roleList.join(', ')} account for ${user.firstName} ${user.lastName}`
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Staff account created. Sign-in details have been e-mailed.',
+    user,
+    // Shown once in the UI so the admin can pass it on if e-mail is not configured.
+    temporaryPassword: password ? undefined : temporaryPassword
+  });
+});
+
+/** GET /api/users - staff directory for the caller's hospital. */
+const getAllUsers = asyncHandler(async (req, res) => {
+  const { search, role, department, status } = req.query;
+  const { page, limit, skip } = getPagination(req.query);
+
+  const filter = { tenantId: req.user.tenantId };
+
+  if (search) {
+    const pattern = new RegExp(escapeRegex(search), 'i');
+    filter.$or = [
+      { firstName: pattern },
+      { lastName: pattern },
+      { email: pattern },
+      { phone: pattern },
+      { specialization: pattern }
+    ];
+  }
+  if (role) filter.roles = role;
+  if (department) filter.department = department;
+  if (status) filter.status = status;
+
+  const [users, total] = await Promise.all([
+    User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    User.countDocuments(filter)
+  ]);
+
+  res.json({
+    success: true,
+    // `count` and `users` are kept for the existing frontend callers.
+    count: users.length,
+    users,
+    meta: buildMeta(total, page, limit)
+  });
+});
+
+/**
+ * GET /api/users/doctors
+ * Convenience list used by the appointment booking form - previously the client
+ * downloaded every user and filtered by role in the browser.
+ */
+const getDoctors = asyncHandler(async (req, res) => {
+  const filter = { tenantId: req.user.tenantId, roles: 'DOCTOR', status: 'ACTIVE' };
+  if (req.query.department) filter.department = req.query.department;
+
+  const doctors = await User.find(filter)
+    .select('firstName lastName department specialization designation consultationFee availableDays availableFrom availableTo email phone')
+    .sort({ firstName: 1 });
+
+  res.json({ success: true, count: doctors.length, doctors });
+});
+
+/** GET /api/users/:id */
+const getUserById = asyncHandler(async (req, res) => {
+  const user = await User.findOne({ _id: req.params.id, tenantId: req.user.tenantId });
+  if (!user) throw ApiError.notFound('Staff member not found');
+
+  let upcomingAppointments = 0;
+  if (user.roles.includes('DOCTOR')) {
+    upcomingAppointments = await Appointment.countDocuments({
       tenantId: req.user.tenantId,
-      status: 'ACTIVE'
-    });
-
-    await newUser.save();
-    console.log('✅ User created in database:', newUser.email);
-
-    // ✅ Send email to PROFESSIONAL EMAIL with TEMPORARY PASSWORD
-    const emailToSend = professionalemail;
-    
-    console.log('📤 Attempting to send email to:', emailToSend);
-    console.log('🔑 Sending temporary password:', autoPassword);
-
-    sendWelcomeEmail(
-      {
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        email: emailToSend,
-        department: newUser.department,
-        roles: newUser.roles
-      },
-      req.user.hospitalName || 'CareEase Hospital',
-      autoPassword, // ✅ YAHI TEMPORARY PASSWORD BHEJ RAHA HUN
-      req.user.tenantId
-    ).then(result => {
-      if (result.success) {
-        console.log('✅ SUCCESS: Email sent to professional email:', emailToSend);
-        console.log('✅ Temporary password delivered:', autoPassword);
-      } else {
-        console.error('❌ FAILED: Email not sent to:', emailToSend);
-        console.error('❌ Error:', result.error);
-      }
-    });
-
-    // Response
-    const userResponse = {
-      id: newUser._id,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      email: newUser.email,
-      professionalemail: newUser.professionalemail,
-      phone: newUser.phone,
-      department: newUser.department,
-      roles: newUser.roles,
-      tenantId: newUser.tenantId,
-      status: newUser.status,
-      createdAt: newUser.createdAt
-    };
-
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully! Email sent with temporary password.',
-      user: userResponse,
-      emailSentTo: emailToSend,
-      temporaryPassword: autoPassword // ✅ Response mein bhi dikha raha hun
-    });
-
-  } catch (error) {
-    console.error('Create user error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error during user creation',
+      doctorId: user._id,
+      appointmentDate: { $gte: new Date() },
+      status: { $in: ['Scheduled', 'Confirmed'] }
     });
   }
-};
 
-// ✅ Simple temporary password generator
-const generateTemporaryPassword = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$';
-  let password = '';
-  
-  // Ensure mix of characters
-  password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
-  password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
-  password += '0123456789'[Math.floor(Math.random() * 10)];
-  password += '@#$'[Math.floor(Math.random() * 3)];
-  
-  // Add remaining characters
-  for (let i = 4; i < 10; i++) {
-    password += chars[Math.floor(Math.random() * chars.length)];
+  res.json({ success: true, user, stats: { upcomingAppointments } });
+});
+
+/** PUT /api/users/:id */
+const updateUser = asyncHandler(async (req, res) => {
+  const user = await User.findOne({ _id: req.params.id, tenantId: req.user.tenantId });
+  if (!user) throw ApiError.notFound('Staff member not found');
+
+  const {
+    firstName, lastName, phone, professionalEmail, department, designation,
+    specialization, consultationFee, roles, status, availableDays, availableFrom, availableTo
+  } = req.body;
+
+  const isSelf = String(user._id) === req.user.userId;
+
+  // An admin must not be able to lock themselves out or drop their own admin role.
+  if (isSelf && status && status !== 'ACTIVE') {
+    throw ApiError.badRequest('You cannot deactivate your own account');
   }
-  
-  // Shuffle
-  return password.split('').sort(() => 0.5 - Math.random()).join('');
-};
-
-// Get All Users for Current Tenant
-const getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find({ 
-      tenantId: req.user.tenantId 
-    }).select('-password').sort({ createdAt: -1 });
-
-    res.json({
-      count: users.length,
-      users
-    });
-  } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({
-      error: 'Internal server error'
-    });
+  if (isSelf && roles && !roles.includes('HOSPITAL_ADMIN')) {
+    throw ApiError.badRequest('You cannot remove your own administrator role');
   }
-};
 
-// Get User by ID
-const getUserById = async (req, res) => {
-  try {
-    const user = await User.findOne({
-      _id: req.params.id,
-      tenantId: req.user.tenantId
-    }).select('-password');
+  if (roles) {
+    const roleList = Array.isArray(roles) ? roles : [roles];
+    const invalid = roleList.find((role) => !ROLES.includes(role));
+    if (invalid) throw ApiError.badRequest(`"${invalid}" is not a valid role`);
 
-    if (!user) {
-      return res.status(404).json({
-        error: 'User not found'
+    // Never leave a hospital without an administrator.
+    if (user.roles.includes('HOSPITAL_ADMIN') && !roleList.includes('HOSPITAL_ADMIN')) {
+      const admins = await User.countDocuments({
+        tenantId: req.user.tenantId,
+        roles: 'HOSPITAL_ADMIN',
+        status: 'ACTIVE'
       });
+      if (admins <= 1) throw ApiError.badRequest('This is the last administrator account');
     }
-
-    res.json({
-      user
-    });
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({
-      error: 'Internal server error'
-    });
+    user.roles = roleList;
   }
-};
 
-// Update User
-const updateUser = async (req, res) => {
-  try {
-    const { firstName, lastName, phone, department, roles, status } = req.body;
+  if (firstName) user.firstName = firstName;
+  if (lastName) user.lastName = lastName;
+  if (phone) user.phone = phone;
+  if (professionalEmail !== undefined) user.professionalEmail = professionalEmail;
+  if (department) user.department = department;
+  if (designation !== undefined) user.designation = designation;
+  if (specialization !== undefined) user.specialization = specialization;
+  if (consultationFee !== undefined) user.consultationFee = consultationFee;
+  if (status) user.status = status;
+  if (availableDays) user.availableDays = availableDays;
+  if (availableFrom) user.availableFrom = availableFrom;
+  if (availableTo) user.availableTo = availableTo;
 
-    const user = await User.findOne({
-      _id: req.params.id,
-      tenantId: req.user.tenantId
-    });
+  await user.save();
 
-    if (!user) {
-      return res.status(404).json({
-        error: 'User not found'
-      });
-    }
+  logActivity({
+    user: req.user,
+    action: 'USER_UPDATED',
+    entityType: 'USER',
+    entityId: user._id,
+    description: `Updated staff record for ${user.firstName} ${user.lastName}`
+  });
 
-    // Update fields
-    if (firstName) user.firstName = firstName;
-    if (lastName) user.lastName = lastName;
-    if (phone) user.phone = phone;
-    if (department) user.department = department;
-    if (roles) user.roles = Array.isArray(roles) ? roles : [roles];
-    if (status) user.status = status;
+  res.json({ success: true, message: 'Staff member updated', user });
+});
 
+/** POST /api/users/:id/reset-password */
+const resetUserPassword = asyncHandler(async (req, res) => {
+  const user = await User.findOne({ _id: req.params.id, tenantId: req.user.tenantId }).select('+password');
+  if (!user) throw ApiError.notFound('Staff member not found');
+
+  const temporaryPassword = generateTemporaryPassword();
+  user.password = temporaryPassword;
+  user.mustChangePassword = true;
+  await user.save();
+
+  const mail = templates.passwordReset({
+    firstName: user.firstName,
+    temporaryPassword,
+    tenantId: user.tenantId
+  });
+  sendMailAsync({ to: user.professionalEmail || user.email, ...mail });
+
+  logActivity({
+    user: req.user,
+    action: 'PASSWORD_RESET',
+    entityType: 'USER',
+    entityId: user._id,
+    description: `Reset password for ${user.firstName} ${user.lastName}`
+  });
+
+  res.json({
+    success: true,
+    message: 'Password reset. The new password has been e-mailed.',
+    temporaryPassword
+  });
+});
+
+/** DELETE /api/users/:id */
+const deleteUser = asyncHandler(async (req, res) => {
+  if (req.params.id === req.user.userId) {
+    throw ApiError.badRequest('You cannot delete your own account');
+  }
+
+  const user = await User.findOne({ _id: req.params.id, tenantId: req.user.tenantId });
+  if (!user) throw ApiError.notFound('Staff member not found');
+
+  if (user.roles.includes('HOSPITAL_ADMIN')) {
+    const admins = await User.countDocuments({ tenantId: req.user.tenantId, roles: 'HOSPITAL_ADMIN' });
+    if (admins <= 1) throw ApiError.badRequest('This is the last administrator account');
+  }
+
+  // A doctor with future appointments is deactivated rather than deleted, so
+  // the appointment history keeps a valid reference.
+  const upcoming = await Appointment.countDocuments({
+    tenantId: req.user.tenantId,
+    doctorId: user._id,
+    appointmentDate: { $gte: new Date() },
+    status: { $in: ['Scheduled', 'Confirmed', 'In Progress'] }
+  });
+
+  if (upcoming > 0) {
+    user.status = 'INACTIVE';
     await user.save();
-
-    res.json({
-      message: 'User updated successfully!',
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        department: user.department,
-        roles: user.roles,
-        status: user.status
-      }
-    });
-
-  } catch (error) {
-    console.error('Update user error:', error);
-    res.status(500).json({
-      error: 'Internal server error during update'
-    });
-  }
-};
-
-const deleteUser = async (req, res) => {
-  try {
-    const user = await User.findOneAndDelete({
-      _id: req.params.id,
-      tenantId: req.user.tenantId
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'User not found'
-      });
-    }
-
-    res.json({
+    return res.json({
       success: true,
-      message: 'User deleted permanently'
-    });
-
-  } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({
-      error: 'Internal server error during delete'
+      deactivated: true,
+      message: `${user.firstName} has ${upcoming} upcoming appointment(s), so the account was deactivated instead of deleted.`
     });
   }
-};
 
-module.exports = { createUser, getAllUsers, getUserById, updateUser , deleteUser };
+  await user.deleteOne();
+
+  logActivity({
+    user: req.user,
+    action: 'USER_DELETED',
+    entityType: 'USER',
+    entityId: user._id,
+    description: `Removed staff account for ${user.firstName} ${user.lastName}`
+  });
+
+  res.json({ success: true, message: 'Staff member removed' });
+});
+
+module.exports = {
+  createUser,
+  getAllUsers,
+  getDoctors,
+  getUserById,
+  updateUser,
+  resetUserPassword,
+  deleteUser
+};

@@ -1,12 +1,13 @@
 import React from 'react';
-import { Star, Quote } from 'lucide-react';
+import { Star, Quote, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Avatar } from '../ui';
 
 const testimonials = [
   {
     name: 'Dr. Sarah Mitchell',
     role: 'Chief Medical Officer',
     hospital: 'City General Hospital',
-    image: '👩‍⚕️',
     rating: 5,
     text: 'CareEase has revolutionized how we manage patient care. The intuitive interface and comprehensive features have significantly improved our operational efficiency. Our staff adapted quickly, and patient satisfaction has increased dramatically.',
   },
@@ -14,7 +15,6 @@ const testimonials = [
     name: 'Michael Chen',
     role: 'Hospital Administrator',
     hospital: 'Metropolitan Medical Center',
-    image: '👨‍💼',
     rating: 5,
     text: 'The billing and insurance module alone has saved us countless hours. The real-time analytics help us make informed decisions quickly. Best investment we\'ve made in healthcare technology in the past decade.',
   },
@@ -22,7 +22,6 @@ const testimonials = [
     name: 'Dr. Priya Sharma',
     role: 'Head of Emergency Services',
     hospital: 'Central Emergency Hospital',
-    image: '👩‍⚕️',
     rating: 5,
     text: 'In emergency medicine, every second counts. CareEase gives us instant access to patient history and streamlines our workflows. It\'s been a game-changer for our department.',
   },
@@ -30,7 +29,6 @@ const testimonials = [
     name: 'James Wilson',
     role: 'IT Director',
     hospital: 'Regional Healthcare Network',
-    image: '👨‍💻',
     rating: 5,
     text: 'Implementation was smooth, and the technical support is outstanding. The security features meet all our compliance requirements. Managing multiple facilities has never been easier.',
   },
@@ -38,7 +36,6 @@ const testimonials = [
     name: 'Dr. Amanda Rodriguez',
     role: 'Medical Director',
     hospital: 'Sunrise Medical Institute',
-    image: '👩‍⚕️',
     rating: 5,
     text: 'The patient management system is incredibly comprehensive. We can track everything from initial consultation to discharge and follow-up. Our clinical outcomes have improved measurably.',
   },
@@ -46,13 +43,14 @@ const testimonials = [
     name: 'Robert Taylor',
     role: 'CFO',
     hospital: 'Lakeside Hospital Group',
-    image: '👨‍💼',
     rating: 5,
     text: 'From a financial perspective, CareEase has delivered excellent ROI. Reduced administrative costs, fewer billing errors, and improved cash flow. Highly recommend to any healthcare organization.',
   },
 ];
 
 export default function Testimonials() {
+  const navigate = useNavigate();
+
   return (
     <section className="py-20 bg-gradient-to-b from-cyan-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -98,9 +96,11 @@ export default function Testimonials() {
 
                 {/* Author Info */}
                 <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl bg-gradient-to-br from-cyan-100 to-blue-100 group-hover:scale-110 transition-transform duration-300">
-                    {testimonial.image}
-                  </div>
+                  <Avatar
+                    name={testimonial.name.replace('Dr. ', '')}
+                    size="lg"
+                    className="group-hover:scale-110 transition-transform duration-300"
+                  />
                   <div>
                     <h4 className="text-gray-900 group-hover:text-cyan-700 transition-colors">
                       {testimonial.name}
@@ -118,9 +118,11 @@ export default function Testimonials() {
         <div className="text-center mt-16">
           <p className="text-gray-600 mb-6">Join over 500+ hospitals using CareEase</p>
           <button
-            className="group px-10 py-5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-500/50 transform hover:scale-110 hover:-translate-y-1 relative overflow-hidden"
+            onClick={() => navigate('/hospital-register')}
+            className="group inline-flex items-center gap-2 px-10 py-5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-500/50 transform hover:scale-105 relative overflow-hidden"
           >
-            <span className="relative z-10">Start Your Free Trial</span>
+            <span className="relative z-10">Register your hospital</span>
+            <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
             <span className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
           </button>
         </div>

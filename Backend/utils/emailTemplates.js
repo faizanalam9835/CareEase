@@ -1,132 +1,134 @@
-// Email templates for appointment notifications
-const appointmentEmailTemplates = {
-    // Patient ko confirmation email
-    patientAppointmentConfirmation: (appointment, patient, doctor) => {
-      return {
-        subject: `Appointment Confirmed - ${appointment.appointmentId}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Appointment Confirmed! 🎉</h2>
-            
-            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #1e293b; margin-bottom: 15px;">Appointment Details</h3>
-              
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b; width: 120px;"><strong>Appointment ID:</strong></td>
-                  <td style="padding: 8px 0;">${appointment.appointmentId}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b;"><strong>Doctor:</strong></td>
-                  <td style="padding: 8px 0;">Dr. ${doctor.firstName} ${doctor.lastName}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b;"><strong>Department:</strong></td>
-                  <td style="padding: 8px 0;">${appointment.department}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b;"><strong>Date:</strong></td>
-                  <td style="padding: 8px 0;">${new Date(appointment.appointmentDate).toDateString()}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b;"><strong>Time:</strong></td>
-                  <td style="padding: 8px 0;">${appointment.appointmentTime}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #64748b;"><strong>Type:</strong></td>
-                  <td style="padding: 8px 0;">${appointment.appointmentType}</td>
-                </tr>
-              </table>
-            </div>
-  
-            <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-              <h4 style="color: #92400e; margin: 0;">📋 Important Instructions:</h4>
-              <ul style="color: #92400e; margin: 10px 0 0 0; padding-left: 20px;">
-                <li>Arrive 15 minutes before your appointment time</li>
-                <li>Bring your previous medical reports (if any)</li>
-                <li>Carry a valid ID proof</li>
-                <li>Mention your Appointment ID at reception</li>
-              </ul>
-            </div>
-  
-            <p style="color: #475569; margin-top: 20px;">
-              For any queries or rescheduling, please contact hospital reception.
-            </p>
-  
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-              <p style="color: #64748b; font-size: 14px;">
-                Best regards,<br>
-                <strong>${patient.tenantId} Hospital</strong>
-              </p>
-            </div>
-          </div>
-        `
-      };
-    },
-  
-    // Doctor ko notification email
-    doctorAppointmentNotification: (appointment, patient, doctor) => {
-      return {
-        subject: `New Appointment - ${appointment.appointmentId}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #059669;">New Appointment Scheduled 🩺</h2>
-            
-            <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #065f46; margin-bottom: 15px;">Appointment Details</h3>
-              
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 8px 0; color: #047857; width: 120px;"><strong>Appointment ID:</strong></td>
-                  <td style="padding: 8px 0;">${appointment.appointmentId}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #047857;"><strong>Patient:</strong></td>
-                  <td style="padding: 8px 0;">${patient.firstName} ${patient.lastName}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #047857;"><strong>Patient ID:</strong></td>
-                  <td style="padding: 8px 0;">${patient.patientId}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #047857;"><strong>Phone:</strong></td>
-                  <td style="padding: 8px 0;">${patient.phone}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #047857;"><strong>Date & Time:</strong></td>
-                  <td style="padding: 8px 0;">${new Date(appointment.appointmentDate).toDateString()} at ${appointment.appointmentTime}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #047857;"><strong>Reason:</strong></td>
-                  <td style="padding: 8px 0;">${appointment.reason}</td>
-                </tr>
-                ${appointment.symptoms && appointment.symptoms.length > 0 ? `
-                  <tr>
-                    <td style="padding: 8px 0; color: #047857;"><strong>Symptoms:</strong></td>
-                    <td style="padding: 8px 0;">${appointment.symptoms.join(', ')}</td>
-                  </tr>
-                ` : ''}
-              </table>
-            </div>
-  
-            <div style="background: #eff6ff; padding: 15px; border-radius: 8px;">
-              <h4 style="color: #1e40af; margin: 0;">📝 Patient Information:</h4>
-              <p style="color: #374151; margin: 10px 0 0 0;">
-                Please review patient details before the appointment. All medical history and previous prescriptions 
-                will be available in the patient's EHR profile.
-              </p>
-            </div>
-  
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-              <p style="color: #64748b; font-size: 14px;">
-                Regards,<br>
-                <strong>Hospital Management System</strong>
-              </p>
-            </div>
-          </div>
-        `
-      };
-    }
-  };
-  
-  module.exports = appointmentEmailTemplates;
+const config = require('../config/env');
+
+const shell = (title, bodyHtml) => `
+<div style="font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;padding:32px">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0">
+    <div style="background:linear-gradient(135deg,#0891b2,#0e7490);padding:24px 28px">
+      <h1 style="margin:0;color:#ffffff;font-size:20px;letter-spacing:-0.2px">CareEase HMS</h1>
+      <p style="margin:4px 0 0;color:#cffafe;font-size:13px">${title}</p>
+    </div>
+    <div style="padding:28px;color:#0f172a;font-size:14px;line-height:1.7">
+      ${bodyHtml}
+    </div>
+    <div style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px">
+      This is an automated message from CareEase Hospital Management System.
+    </div>
+  </div>
+</div>`;
+
+const row = (label, value) =>
+  `<tr><td style="padding:6px 12px 6px 0;color:#64748b">${label}</td><td style="padding:6px 0;font-weight:600">${value}</td></tr>`;
+
+const table = (rows) =>
+  `<table style="width:100%;border-collapse:collapse;margin:16px 0">${rows.join('')}</table>`;
+
+const button = (href, label) =>
+  `<a href="${href}" style="display:inline-block;background:#0891b2;color:#ffffff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600">${label}</a>`;
+
+const hospitalVerification = ({ hospitalName, tenantId, verificationLink, token }) => ({
+  subject: 'Verify your hospital registration - CareEase HMS',
+  html: shell(
+    'Hospital registration',
+    `<p>Welcome, <strong>${hospitalName}</strong>.</p>
+     <p>Your workspace is ready. Confirm your e-mail address to activate it and create your administrator account.</p>
+     <p style="margin:24px 0">${button(verificationLink, 'Verify and activate')}</p>
+     ${table([row('Hospital ID', tenantId), row('Verification token', token)])}
+     <p style="color:#64748b">Keep your Hospital ID safe - every member of your team needs it to sign in. This link expires in 24 hours.</p>`
+  )
+});
+
+const hospitalActivated = ({ hospitalName, tenantId, adminEmail, temporaryPassword }) => ({
+  subject: 'Your CareEase workspace is active',
+  html: shell(
+    'Workspace activated',
+    `<p><strong>${hospitalName}</strong> is now active on CareEase.</p>
+     <p>Sign in with the administrator account below and change the password right away.</p>
+     ${table([
+       row('Hospital ID', tenantId),
+       row('E-mail', adminEmail),
+       row('Temporary password', temporaryPassword)
+     ])}
+     <p style="margin:24px 0">${button(`${config.clientUrl}/login`, 'Go to sign in')}</p>`
+  )
+});
+
+const staffWelcome = ({
+  firstName,
+  lastName,
+  email,
+  department,
+  roles,
+  hospitalName,
+  tenantId,
+  temporaryPassword
+}) => ({
+  subject: `Your ${hospitalName} account is ready`,
+  html: shell(
+    'Staff account created',
+    `<p>Hello ${firstName} ${lastName},</p>
+     <p>An account has been created for you at <strong>${hospitalName}</strong>.</p>
+     ${table([
+       row('Hospital ID', tenantId),
+       row('E-mail', email),
+       row('Temporary password', temporaryPassword),
+       row('Department', department),
+       row('Role', Array.isArray(roles) ? roles.join(', ') : roles)
+     ])}
+     <p style="margin:24px 0">${button(`${config.clientUrl}/login`, 'Sign in')}</p>
+     <p style="color:#64748b">You will be asked to choose a new password on first sign in.</p>`
+  )
+});
+
+const appointmentForPatient = ({ appointment, patient, doctor }) => ({
+  subject: `Appointment confirmed - ${new Date(appointment.appointmentDate).toDateString()}`,
+  html: shell(
+    'Appointment confirmation',
+    `<p>Hello ${patient.firstName},</p>
+     <p>Your appointment has been booked.</p>
+     ${table([
+       row('Reference', appointment.appointmentId),
+       row('Doctor', `Dr. ${doctor.firstName} ${doctor.lastName}`),
+       row('Department', appointment.department),
+       row('Date', new Date(appointment.appointmentDate).toDateString()),
+       row('Time', appointment.appointmentTime),
+       row('Reason', appointment.reason)
+     ])}
+     <p style="color:#64748b">Please arrive 10 minutes early. To reschedule, contact the reception desk.</p>`
+  )
+});
+
+const appointmentForDoctor = ({ appointment, patient, doctor }) => ({
+  subject: `New appointment - ${patient.firstName} ${patient.lastName}`,
+  html: shell(
+    'New appointment',
+    `<p>Dr. ${doctor.firstName},</p>
+     <p>A new appointment has been added to your schedule.</p>
+     ${table([
+       row('Reference', appointment.appointmentId),
+       row('Patient', `${patient.firstName} ${patient.lastName} (${patient.patientId})`),
+       row('Date', new Date(appointment.appointmentDate).toDateString()),
+       row('Time', appointment.appointmentTime),
+       row('Reason', appointment.reason)
+     ])}`
+  )
+});
+
+const passwordReset = ({ firstName, temporaryPassword, tenantId }) => ({
+  subject: 'Your CareEase password has been reset',
+  html: shell(
+    'Password reset',
+    `<p>Hello ${firstName},</p>
+     <p>An administrator reset your password. Use the temporary password below and change it after signing in.</p>
+     ${table([row('Hospital ID', tenantId), row('Temporary password', temporaryPassword)])}
+     <p style="margin:24px 0">${button(`${config.clientUrl}/login`, 'Sign in')}</p>`
+  )
+});
+
+module.exports = {
+  hospitalVerification,
+  hospitalActivated,
+  staffWelcome,
+  appointmentForPatient,
+  appointmentForDoctor,
+  passwordReset
+};

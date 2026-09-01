@@ -1,7 +1,18 @@
-import React from 'react';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, CheckCircle2, PartyPopper } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function CTA() {
+  const navigate = useNavigate();
+  // The form used to be three inert inputs and a button that reloaded the page.
+  // What the visitor types is now carried into the registration form.
+  const [lead, setLead] = useState({ name: '', adminEmail: '', contactNumber: '' });
+
+  const start = (event) => {
+    event.preventDefault();
+    navigate('/hospital-register', { state: lead });
+  };
+
   return (
     <section id="contact" className="py-20 bg-gradient-to-b from-white to-cyan-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,11 +58,14 @@ export default function CTA() {
 
               {/* CTA Form */}
               <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/20">
-                <form className="space-y-5">
+                <form className="space-y-5" onSubmit={start}>
                   <div>
                     <input
                       type="text"
-                      placeholder="Hospital Name"
+                      placeholder="Hospital name"
+                      aria-label="Hospital name"
+                      value={lead.name}
+                      onChange={(event) => setLead((current) => ({ ...current, name: event.target.value }))}
                       className="w-full px-5 py-4 rounded-xl border-2 border-gray-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-200/50 outline-none transition-all duration-300 hover:border-cyan-300"
                     />
                   </div>
@@ -59,7 +73,10 @@ export default function CTA() {
                   <div>
                     <input
                       type="email"
-                      placeholder="Work Email"
+                      placeholder="Work e-mail"
+                      aria-label="Work e-mail"
+                      value={lead.adminEmail}
+                      onChange={(event) => setLead((current) => ({ ...current, adminEmail: event.target.value }))}
                       className="w-full px-5 py-4 rounded-xl border-2 border-gray-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-200/50 outline-none transition-all duration-300 hover:border-cyan-300"
                     />
                   </div>
@@ -67,7 +84,10 @@ export default function CTA() {
                   <div>
                     <input
                       type="tel"
-                      placeholder="Phone Number"
+                      placeholder="Phone number"
+                      aria-label="Phone number"
+                      value={lead.contactNumber}
+                      onChange={(event) => setLead((current) => ({ ...current, contactNumber: event.target.value }))}
                       className="w-full px-5 py-4 rounded-xl border-2 border-gray-200 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-200/50 outline-none transition-all duration-300 hover:border-cyan-300"
                     />
                   </div>
@@ -76,7 +96,7 @@ export default function CTA() {
                     type="submit"
                     className="group w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-6 py-4 rounded-xl hover:from-cyan-700 hover:to-blue-700 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-2xl transform hover:scale-[1.02]"
                   >
-                    <span>Start Free Trial</span>
+                    <span>Get started</span>
                     <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                   </button>
                 </form>
@@ -98,7 +118,7 @@ export default function CTA() {
               {/* Floating Badge */}
               <div className="absolute top-8 left-8 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl p-5 border border-white/20 hover:bg-white transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
                 <div className="flex items-center gap-3">
-                  <span className="text-3xl">🎉</span>
+                  <PartyPopper className="w-8 h-8 text-cyan-700" aria-hidden="true" />
                   <div>
                     <p className="text-gray-900">Special Offer</p>
                     <p className="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent text-sm">

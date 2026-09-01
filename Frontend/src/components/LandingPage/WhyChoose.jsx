@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Sparkles, Headphones, Rocket, Lock, Globe } from 'lucide-react';
+import { CheckCircle2, Sparkles, Headphones, Rocket, Lock, Globe, Star } from 'lucide-react';
 
 const benefits = [
   {
@@ -57,7 +57,7 @@ export default function WhyChooseUs() {
               <p className="text-gray-600 text-sm">HMS Platform</p>
               <div className="flex gap-1 mt-2 justify-center">
                 {[...Array(5)].map((_, i) => (
-                  <span key={i} className="text-yellow-400">⭐</span>
+                  <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" aria-hidden="true" />
                 ))}
               </div>
             </div>

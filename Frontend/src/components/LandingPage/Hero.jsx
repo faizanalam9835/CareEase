@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Play, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, CircleCheck, LogIn } from 'lucide-react';
 import { useNavigate } from "react-router-dom"
 
 export default function Hero() {
@@ -63,10 +63,15 @@ export default function Hero() {
               </button>
 
               {/* Button 2 */}
-              <button className="group px-8 py-4 rounded-full border-2 border-cyan-300 text-gray-700 hover:border-cyan-500 hover:bg-cyan-50 transition-all duration-300 flex items-center justify-center space-x-2 relative overflow-hidden">
+              {/* Was a dead "Watch Demo" button; it now opens the sign-in page,
+                  where the seeded demo accounts are listed. */}
+              <button
+                onClick={() => navigate("/login")}
+                className="group px-8 py-4 rounded-full border-2 border-cyan-300 text-gray-700 hover:border-cyan-500 hover:bg-cyan-50 transition-all duration-300 flex items-center justify-center space-x-2 relative overflow-hidden"
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-100 to-cyan-50 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <Play className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" />
-                <span className="relative z-10">Watch Demo</span>
+                <LogIn className="w-5 h-5 relative z-10 group-hover:scale-110 transition-transform" />
+                <span className="relative z-10">Try the live demo</span>
               </button>
             </div>
 
@@ -107,7 +112,7 @@ export default function Hero() {
                     className="w-12 h-12 rounded-full flex items-center justify-center animate-pulse"
                     style={{ backgroundColor: "#b2ebf2" }}
                   >
-                    <span className="text-2xl">✓</span>
+                    <CircleCheck className="w-6 h-6 text-cyan-800" aria-hidden="true" />
                   </div>
                 </div>
               </div>

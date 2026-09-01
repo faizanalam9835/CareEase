@@ -1,390 +1,324 @@
-// src/Pages/auth/HospitalRegistration.jsx
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { hospitalService } from '../../services/hospitalService';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { 
-  Building2, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  FileText, 
-  CheckCircle2, 
-  AlertCircle,
-  Loader2,
+import {
+  Building2,
+  MapPin,
+  Phone,
+  Mail,
+  FileBadge,
+  Globe,
+  BedDouble,
+  HeartPulse,
+  ArrowRight,
   ArrowLeft,
+  CircleCheck,
+  Copy,
+  Check,
   ShieldCheck,
-  Send
+  Clock,
+  Users
 } from 'lucide-react';
+import { hospitalService } from '../../services';
+import { Button, Input, Card, Badge } from '../../components/ui';
 
-const HospitalRegister = () => {
+const BENEFITS = [
+  { icon: Clock, title: 'Live in minutes', copy: 'Register, verify your e-mail and start working.' },
+  { icon: ShieldCheck, title: 'Your data stays yours', copy: 'Every hospital is fully isolated from every other.' },
+  { icon: Users, title: 'Roles out of the box', copy: 'Doctors, nurses, pharmacy and front desk, ready to go.' }
+];
+
+/* ---------------------------- success panel ------------------------------ */
+
+const Registered = ({ result }) => {
+  const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    contactNumber: '',
-    adminEmail: '',
-    licenseNumber: ''
-  });
 
-  const [loading, setLoading] = useState(false);
-  const [touched, setTouched] = useState({});
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleBlur = (e) => {
-    const { name } = e.target;
-    setTouched(prev => ({
-      ...prev,
-      [name]: true
-    }));
-  };
-
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.name.trim()) errors.name = 'Hospital name is required';
-    if (!formData.address.trim()) errors.address = 'Address is required';
-    if (!formData.contactNumber.trim()) errors.contactNumber = 'Contact number is required';
-    if (!formData.adminEmail.trim()) errors.adminEmail = 'Email is required';
-    if (!formData.licenseNumber.trim()) errors.licenseNumber = 'License number is required';
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (formData.adminEmail && !emailRegex.test(formData.adminEmail)) {
-      errors.adminEmail = 'Please enter a valid email address';
-    }
-
-    if (formData.contactNumber && formData.contactNumber.length < 10) {
-      errors.contactNumber = 'Contact number must be at least 10 digits';
-    }
-
-    return errors;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setTouched({
-      name: true,
-      address: true,
-      contactNumber: true,
-      adminEmail: true,
-      licenseNumber: true
-    });
-
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      Object.values(errors).forEach(error => toast.error(error));
-      return;
-    }
-
-    setLoading(true);
-
+  const copy = async () => {
     try {
-      const result = await hospitalService.registerHospital(formData);
-      
-      if (result.success) {
-        toast.success(
-          'Hospital registered successfully! Check your email for verification link.',
-          {
-            duration: 6000,
-            icon: <CheckCircle2 className="w-5 h-5 text-green-500" />,
-          }
-        );
-        
-        setFormData({
-          name: '',
-          address: '',
-          contactNumber: '',
-          adminEmail: '',
-          licenseNumber: ''
-        });
-        
-        setTimeout(() => {
-          navigate('/login', {
-            state: {
-              message: 'Hospital registered successfully! Check your email for verification link.'
-            }
-          });
-        }, 2000);
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (err) {
-      toast.error(err.message || 'Registration failed. Please try again.');
-    } finally {
-      setLoading(false);
+      await navigator.clipboard.writeText(result.tenantId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy');
     }
   };
-
-  const errors = validateForm();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-100 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center text-sm text-cyan-600 hover:text-cyan-700 mb-6 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back
-          </button>
-          
-          <div className="flex items-center justify-center mb-4">
-            <div className="relative">
-              <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Building2 className="w-8 h-8 text-white" />
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
-                <ShieldCheck className="w-3 h-3 text-white" />
-              </div>
-            </div>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+      <Card className="w-full max-w-lg p-8 text-center">
+        <span className="mx-auto inline-flex rounded-full bg-emerald-50 p-3.5 text-emerald-600">
+          <CircleCheck className="h-8 w-8" aria-hidden="true" />
+        </span>
+
+        <h1 className="mt-5 text-xl font-semibold text-slate-900">Hospital registered</h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          We have sent a verification link to <strong>{result.adminEmail}</strong>. Open it to
+          activate the workspace and create your administrator account.
+        </p>
+
+        <div className="mt-6 rounded-xl border border-cyan-100 bg-cyan-50/60 p-4 text-left">
+          <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
+            Your Hospital ID
+          </p>
+          <div className="mt-1.5 flex items-center gap-2">
+            <code className="rounded bg-white px-2.5 py-1.5 font-mono text-base font-semibold text-slate-900 ring-1 ring-cyan-200">
+              {result.tenantId}
+            </code>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={copied ? Check : Copy}
+              aria-label="Copy hospital ID"
+              onClick={copy}
+            />
           </div>
-          
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-3">
-            Hospital Registration
-          </h1>
-          <p className="text-gray-600 text-lg max-w-md mx-auto">
-            Join our network and start managing your hospital efficiently
+          <p className="mt-2 text-xs leading-relaxed text-cyan-800/80">
+            Keep this safe — every member of your team needs it to sign in.
           </p>
         </div>
 
-        {/* Registration Form */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/60 p-8 mb-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Hospital Name */}
-            <div className="group">
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                <Building2 className="w-4 h-4 mr-2 text-cyan-600" />
-                Hospital Name *
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`w-full px-4 py-4 pl-12 border-2 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 group-hover:border-cyan-300 ${
-                    touched.name && errors.name 
-                      ? 'border-red-300 bg-red-50' 
-                      : 'border-gray-200'
-                  }`}
-                  placeholder="Enter hospital name"
-                />
-                <Building2 className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                  touched.name && errors.name ? 'text-red-400' : 'text-gray-400'
-                }`} />
-              </div>
-              {touched.name && errors.name && (
-                <p className="mt-2 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.name}
-                </p>
-              )}
-            </div>
-
-            {/* Address */}
-            <div className="group">
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                <MapPin className="w-4 h-4 mr-2 text-cyan-600" />
-                Full Address *
-              </label>
-              <div className="relative">
-                <textarea
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  rows="3"
-                  className={`w-full px-4 py-4 pl-12 border-2 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 resize-none group-hover:border-cyan-300 ${
-                    touched.address && errors.address 
-                      ? 'border-red-300 bg-red-50' 
-                      : 'border-gray-200'
-                  }`}
-                  placeholder="Enter complete hospital address"
-                />
-                <MapPin className={`absolute left-4 top-4 w-5 h-5 ${
-                  touched.address && errors.address ? 'text-red-400' : 'text-gray-400'
-                }`} />
-              </div>
-              {touched.address && errors.address && (
-                <p className="mt-2 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.address}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Contact Number */}
-              <div className="group">
-                <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                  <Phone className="w-4 h-4 mr-2 text-cyan-600" />
-                  Contact Number *
-                </label>
-                <div className="relative">
-                  <input
-                    type="tel"
-                    name="contactNumber"
-                    value={formData.contactNumber}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`w-full px-4 py-4 pl-12 border-2 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 group-hover:border-cyan-300 ${
-                      touched.contactNumber && errors.contactNumber 
-                        ? 'border-red-300 bg-red-50' 
-                        : 'border-gray-200'
-                    }`}
-                    placeholder="Enter contact number"
-                  />
-                  <Phone className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                    touched.contactNumber && errors.contactNumber ? 'text-red-400' : 'text-gray-400'
-                  }`} />
-                </div>
-                {touched.contactNumber && errors.contactNumber && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {errors.contactNumber}
-                  </p>
-                )}
-              </div>
-
-              {/* Admin Email */}
-              <div className="group">
-                <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                  <Mail className="w-4 h-4 mr-2 text-cyan-600" />
-                  Admin Email *
-                </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    name="adminEmail"
-                    value={formData.adminEmail}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`w-full px-4 py-4 pl-12 border-2 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 group-hover:border-cyan-300 ${
-                      touched.adminEmail && errors.adminEmail 
-                        ? 'border-red-300 bg-red-50' 
-                        : 'border-gray-200'
-                    }`}
-                    placeholder="Enter admin email"
-                  />
-                  <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                    touched.adminEmail && errors.adminEmail ? 'text-red-400' : 'text-gray-400'
-                  }`} />
-                </div>
-                {touched.adminEmail && errors.adminEmail && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {errors.adminEmail}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* License Number */}
-            <div className="group">
-              <label className="flex items-center text-sm font-semibold text-gray-700 mb-3">
-                <FileText className="w-4 h-4 mr-2 text-cyan-600" />
-                License Number *
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  name="licenseNumber"
-                  value={formData.licenseNumber}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={`w-full px-4 py-4 pl-12 border-2 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 group-hover:border-cyan-300 ${
-                    touched.licenseNumber && errors.licenseNumber 
-                      ? 'border-red-300 bg-red-50' 
-                      : 'border-gray-200'
-                  }`}
-                  placeholder="Enter hospital license number"
-                />
-                <FileText className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                  touched.licenseNumber && errors.licenseNumber ? 'text-red-400' : 'text-gray-400'
-                }`} />
-              </div>
-              {touched.licenseNumber && errors.licenseNumber && (
-                <p className="mt-2 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.licenseNumber}
-                </p>
-              )}
-            </div>
-
-            {/* Info Card */}
-            <div className="bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-2xl p-6">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-cyan-100 rounded-full flex items-center justify-center mt-0.5">
-                  <Send className="w-3 h-3 text-cyan-600" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-cyan-800 mb-3">Registration Process</h4>
-                  <ul className="text-sm text-cyan-700 space-y-2">
-                    <li className="flex items-center">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full mr-3"></div>
-                      Verification email will be sent to admin email
-                    </li>
-                    <li className="flex items-center">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full mr-3"></div>
-                      Click verification link to activate account
-                    </li>
-                    <li className="flex items-center">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full mr-3"></div>
-                      Admin user will be created automatically
-                    </li>
-                    <li className="flex items-center">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full mr-3"></div>
-                      Temporary password: <strong className="ml-1">Admin@123</strong>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-4 px-6 rounded-xl hover:from-cyan-700 hover:to-blue-700 disabled:opacity-50 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:shadow-lg flex items-center justify-center space-x-3 group"
+        {/* Shown so the flow can be completed on a machine with no mailbox. */}
+        {result.verificationLink && (
+          <div className="mt-4 rounded-xl border border-slate-200 p-4 text-left">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Verification link
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              If the e-mail does not arrive, you can verify directly:
+            </p>
+            <Button
+              className="mt-2.5 w-full"
+              onClick={() => navigate(`/verify/${result.verificationToken}`)}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Registering Hospital...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  <span>Register Hospital</span>
-                </>
-              )}
-            </button>
-          </form>
-        </div>
+              Verify now
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        )}
 
-        {/* Login Link */}
-        <div className="text-center">
-          <p className="text-gray-600">
-            Already have an account?{' '}
-            <Link 
-              to="/login" 
-              className="text-cyan-600 hover:text-cyan-700 font-semibold underline-offset-2 hover:underline transition-colors"
-            >
-              Login here
-            </Link>
-          </p>
+        <Link to="/login" className="mt-6 inline-block text-sm font-medium text-cyan-700 hover:underline">
+          Go to sign in
+        </Link>
+      </Card>
+    </div>
+  );
+};
+
+/* -------------------------------- the form -------------------------------- */
+
+const HospitalRegister = () => {
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+
+  // Values typed into the landing page's call-to-action arrive as route state.
+  const { state } = useLocation();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors }
+  } = useForm({
+    defaultValues: {
+      name: state?.name || '',
+      adminEmail: state?.adminEmail || '',
+      contactNumber: state?.contactNumber || '',
+      bedCapacity: 50
+    }
+  });
+
+  const onSubmit = async (values) => {
+    setSubmitting(true);
+    try {
+      const data = await hospitalService.register({
+        ...values,
+        bedCapacity: Number(values.bedCapacity) || 50
+      });
+      toast.success('Hospital registered');
+      setResult({ ...data, adminEmail: values.adminEmail });
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (result) return <Registered result={result} />;
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
+          <Link to="/" className="flex items-center gap-2.5">
+            <span className="rounded-lg bg-cyan-600 p-1.5 text-white">
+              <HeartPulse className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="text-base font-semibold text-slate-900">CareEase</span>
+          </Link>
+          <Link to="/login">
+            <Button variant="ghost" size="sm">
+              Sign in
+            </Button>
+          </Link>
         </div>
-      </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-5 py-10">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back
+        </Link>
+
+        <div className="mt-6 grid gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <Badge tone="cyan">Free to start</Badge>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              Register your hospital
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
+              You get an isolated workspace with its own Hospital ID. Verify the administrator
+              e-mail and you can start adding staff and patients straight away.
+            </p>
+
+            <Card className="mt-7">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-6" noValidate>
+                <section>
+                  <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Hospital details
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      label="Hospital name"
+                      required
+                      className="sm:col-span-2"
+                      icon={Building2}
+                      placeholder="CareEase General Hospital"
+                      error={errors.name}
+                      {...register('name', {
+                        required: 'Enter the hospital name',
+                        minLength: { value: 3, message: 'At least 3 characters' }
+                      })}
+                    />
+                    <Input
+                      label="Address"
+                      required
+                      className="sm:col-span-2"
+                      icon={MapPin}
+                      placeholder="17 Marine Lines, Churchgate"
+                      error={errors.address}
+                      {...register('address', { required: 'Enter the address' })}
+                    />
+                    <Input label="City" placeholder="Mumbai" {...register('city')} />
+                    <Input label="State" placeholder="Maharashtra" {...register('state')} />
+                    <Input
+                      label="Bed capacity"
+                      type="number"
+                      min="0"
+                      icon={BedDouble}
+                      hint="Used for the occupancy figure"
+                      {...register('bedCapacity')}
+                    />
+                    <Input
+                      label="Website"
+                      icon={Globe}
+                      placeholder="https://"
+                      {...register('website')}
+                    />
+                  </div>
+                </section>
+
+                <section>
+                  <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Contact and licence
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      label="Contact number"
+                      required
+                      icon={Phone}
+                      placeholder="02224445566"
+                      error={errors.contactNumber}
+                      {...register('contactNumber', {
+                        required: 'Enter a contact number',
+                        pattern: {
+                          value: /^[0-9+\-\s()]{8,15}$/,
+                          message: 'That does not look like a phone number'
+                        }
+                      })}
+                    />
+                    <Input
+                      label="Licence number"
+                      required
+                      icon={FileBadge}
+                      placeholder="MH-HOSP-2024-0001"
+                      error={errors.licenseNumber}
+                      {...register('licenseNumber', { required: 'Enter the licence number' })}
+                    />
+                    <Input
+                      label="Administrator e-mail"
+                      type="email"
+                      required
+                      className="sm:col-span-2"
+                      icon={Mail}
+                      placeholder="admin@yourhospital.health"
+                      hint="This becomes the first administrator account"
+                      error={errors.adminEmail}
+                      {...register('adminEmail', {
+                        required: 'Enter the administrator e-mail',
+                        pattern: {
+                          value: /^\S+@\S+\.\S+$/,
+                          message: 'That does not look like an e-mail address'
+                        }
+                      })}
+                    />
+                  </div>
+                </section>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">
+                  <p className="text-xs text-slate-500">
+                    Already registered?{' '}
+                    <Link to="/login" className="font-medium text-cyan-700 hover:underline">
+                      Sign in
+                    </Link>
+                  </p>
+                  <Button type="submit" size="lg" loading={submitting}>
+                    {submitting ? 'Registering' : 'Register hospital'}
+                    {!submitting && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
+
+          <aside className="space-y-4">
+            {BENEFITS.map(({ icon: Icon, title, copy }) => (
+              <Card key={title} className="p-5">
+                <span className="inline-flex rounded-lg bg-cyan-50 p-2 text-cyan-600">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h3 className="mt-3 text-sm font-semibold text-slate-900">{title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-slate-500">{copy}</p>
+              </Card>
+            ))}
+
+            <Card className="border-cyan-100 bg-cyan-50/60 p-5">
+              <h3 className="text-sm font-semibold text-cyan-900">Just looking around?</h3>
+              <p className="mt-1 text-sm leading-relaxed text-cyan-800/80">
+                The sign-in page lists demo accounts for every role, loaded with sample data.
+              </p>
+              <Link to="/login">
+                <Button variant="secondary" size="sm" className="mt-3">
+                  Try the demo
+                </Button>
+              </Link>
+            </Card>
+          </aside>
+        </div>
+      </main>
     </div>
   );
 };

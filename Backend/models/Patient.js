@@ -1,96 +1,81 @@
 const mongoose = require('mongoose');
-const Counter = require('./Counter');
+const { nextId } = require('../utils/sequence');
+const {
+  BLOOD_GROUPS,
+  GENDERS,
+  PATIENT_TYPES,
+  PATIENT_STATUSES,
+  DEPARTMENTS
+} = require('../config/constants');
 
-const patientSchema = new mongoose.Schema({
-  patientId: {
-    type: String,
-    required: true,
-    unique: true
+const patientSchema = new mongoose.Schema(
+  {
+    patientId: { type: String, index: true },
+
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    dateOfBirth: { type: Date, required: true },
+    gender: { type: String, enum: GENDERS, required: true },
+    bloodGroup: { type: String, enum: BLOOD_GROUPS, default: 'Unknown' },
+
+    phone: { type: String, required: true, trim: true },
+    email: { type: String, lowercase: true, trim: true },
+
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      pincode: String
+    },
+
+    emergencyContact: {
+      name: String,
+      relationship: String,
+      phone: String
+    },
+
+    allergies: [String],
+    chronicConditions: [String],
+    currentMedications: [String],
+
+    patientType: { type: String, enum: PATIENT_TYPES, default: 'OPD' },
+    department: { type: String, enum: DEPARTMENTS, default: 'General' },
+
+    assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
+    // IPD only
+    admissionDate: Date,
+    dischargeDate: Date,
+    roomNumber: String,
+
+    notes: String,
+
+    tenantId: { type: String, required: true, index: true },
+    status: { type: String, enum: PATIENT_STATUSES, default: 'Active' }
   },
-  firstName: {
-    type: String,
-    required: true
-  },
-  lastName: {
-    type: String,
-    required: true
-  },
-  dateOfBirth: {
-    type: Date,
-    required: true
-  },
-  gender: {
-    type: String,
-    enum: ['Male', 'Female', 'Other'],
-    required: true
-  },
-  bloodGroup: {
-    type: String,
-    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'],
-    default: 'Unknown'
-  },
-  phone: {
-    type: String,
-    required: true
-  },
-  email: {
-    type: String
-  },
-  address: {
-    street: String,
-    city: String,
-    state: String,
-    pincode: String
-  },
-  emergencyContact: {
-    name: String,
-    relationship: String,
-    phone: String
-  },
-  allergies: [String],
-  chronicConditions: [String],
-  currentMedications: [String],
-  patientType: {
-    type: String,
-    enum: ['OPD', 'IPD'],
-    default: 'OPD'
-  },
-  department: String,
-  assignedDoctor: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  tenantId: {
-    type: String,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['Active', 'Inactive', 'Discharged', 'Deceased'],
-    default: 'Active'
-  }
-}, {
-  timestamps: true
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
+);
+
+patientSchema.index({ tenantId: 1, patientId: 1 }, { unique: true });
+patientSchema.index({ tenantId: 1, phone: 1 });
+patientSchema.index({ tenantId: 1, department: 1, status: 1 });
+
+patientSchema.virtual('fullName').get(function () {
+  return `${this.firstName} ${this.lastName}`.trim();
 });
 
-// ✅ PROFESSIONAL: Auto-increment with counter collection
-patientSchema.pre('save', async function() {
-  if (this.isNew) {
-    try {
-      // Find and increment the counter for this tenant
-      const counter = await Counter.findByIdAndUpdate(
-        `patient_${this.tenantId}`,
-        { $inc: { sequence_value: 1 } },
-        { new: true, upsert: true }
-      );
-      
-      this.patientId = `${this.tenantId}-P-${counter.sequence_value.toString().padStart(4, '0')}`;
-    } catch (error) {
-      console.error('Error generating patient ID:', error);
-      // Fallback: Use timestamp as ID
-      this.patientId = `${this.tenantId}-P-${Date.now()}`;
-    }
-  }
+patientSchema.virtual('age').get(function () {
+  if (!this.dateOfBirth) return null;
+  const diff = Date.now() - new Date(this.dateOfBirth).getTime();
+  return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+});
+
+// `pre('save')` must await the id before the document is written. The old hook
+// was an async function without `next`, so Mongoose sometimes persisted the
+// document before patientId existed.
+patientSchema.pre('save', async function assignPatientId() {
+  if (this.patientId) return;
+  this.patientId = await nextId('patient', this.tenantId, 'P');
 });
 
 module.exports = mongoose.model('Patient', patientSchema);

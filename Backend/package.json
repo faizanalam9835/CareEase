@@ -1,10 +1,15 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
+  "name": "careease-backend",
+  "version": "2.0.0",
+  "description": "CareEase Hospital Management System - REST API",
   "main": "Server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node Server.js",
+    "dev": "node --watch Server.js",
+    "seed": "node seed/seed.js",
+    "seed:reset": "node seed/seed.js --reset",
+    "demo": "node scripts/demo.js",
+    "test": "node tests/api.test.js"
   },
   "keywords": [],
   "author": "",
@@ -17,10 +22,13 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
     "nodemailer": "^8.0.4",
-    "razorpay": "^2.9.6",
-    "redis": "^5.10.0",
-    "resend": "^6.5.2",
     "uuid": "^9.0.1",
     "zod": "^4.1.13"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^10.1.4"
   }
 }

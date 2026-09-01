@@ -1,74 +1,46 @@
 const express = require('express');
 const {
   createAppointment,
+  getAllAppointments,
+  getTodaysAppointments,
   getAppointmentsByPatient,
   getAppointmentsByDoctor,
+  getDoctorAvailability,
   updateAppointmentStatus,
-  getTodaysAppointments,
-  getAllAppointments,
   updateAppointment,
   deleteAppointment
 } = require('../controllers/appointmentController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const { departmentAccessControl } = require('../middleware/abac');
 
 const router = express.Router();
 
-// Create appointment
-router.post('/',
-  authenticateToken,
+router.use(authenticateToken);
+
+// Fixed paths first, so `/today` is not swallowed by a `/:id` route.
+router.get('/today', getTodaysAppointments);
+router.get('/availability', getDoctorAvailability);
+router.get('/patient/:patientId', getAppointmentsByPatient);
+router.get('/doctor/:doctorId', getAppointmentsByDoctor);
+
+// Doctors and nurses may read the diary; the controller narrows the result to
+// their own patients.
+router.get('/', getAllAppointments);
+
+router.post(
+  '/',
   authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'),
-  departmentAccessControl,
   createAppointment
 );
 
-// Get all appointments (Admin view)
-router.get('/',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST'),
-  getAllAppointments
-);
-
-// Get appointments by patient ID
-router.get('/patient/:patientId',
-  authenticateToken,
+router.patch(
+  '/:id/status',
   authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR', 'NURSE'),
-  getAppointmentsByPatient
-);
-
-// Get appointments by doctor ID
-router.get('/doctor/:doctorId',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'),
-  getAppointmentsByDoctor
-);
-
-// Get today's appointments
-router.get('/today',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR', 'NURSE'),
-  getTodaysAppointments
-);
-
-// Update appointment status
-router.patch('/:id/status',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'),
   updateAppointmentStatus
 );
+// PUT alias so an older client calling PUT on the status route still works.
+router.put('/:id/status', authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR', 'NURSE'), updateAppointmentStatus);
 
+router.put('/:id', authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'), updateAppointment);
+router.delete('/:id', authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST'), deleteAppointment);
 
-router.put('/:id',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'),
-  departmentAccessControl,
-  updateAppointment
-);
-
-
-router.delete('/:id',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST'),
-  deleteAppointment
-);
 module.exports = router;

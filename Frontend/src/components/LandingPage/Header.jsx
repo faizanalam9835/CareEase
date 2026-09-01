@@ -1,99 +1,160 @@
-import React, { useState, useEffect } from 'react';
-import { Menu, X, Heart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Menu, X, HeartPulse, LayoutDashboard, LogIn, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+
+const LINKS = [
+  { label: 'Home', href: '#home' },
+  { label: 'Features', href: '#features' },
+  { label: 'Services', href: '#services' },
+  { label: 'About', href: '#about' },
+  { label: 'Contact', href: '#contact' }
+];
 
 export default function Header() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const go = (path) => {
+    setOpen(false);
+    navigate(path);
+  };
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-        scrolled ? 'bg-white/90 backdrop-blur-lg shadow-lg' : 'bg-white/50 backdrop-blur-sm'
+      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+        scrolled ? 'bg-white/95 shadow-sm backdrop-blur-lg' : 'bg-white/60 backdrop-blur-sm'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-20 items-center justify-between">
+          <button
+            type="button"
+            onClick={() => go('/')}
+            className="flex items-center gap-2.5"
+            aria-label="CareEase home"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 text-white">
+              <HeartPulse className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <span className="text-xl font-semibold text-slate-900">CareEase</span>
+          </button>
 
-          {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: '#b2ebf2' }}
-            >
-              <Heart className="w-6 h-6 text-cyan-800" fill="currentColor" />
-            </div>
-            <span className="text-2xl text-gray-900">CareEase</span>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {['Home', 'Features', 'Services', 'About', 'Contact'].map((item) => (
+          <div className="hidden items-center gap-8 md:flex">
+            {LINKS.map((link) => (
               <a
-                key={item}
-                href={`#${item.toLowerCase()}`}
-                className="text-gray-700 hover:text-cyan-600 transition-all duration-300 relative group"
+                key={link.label}
+                href={link.href}
+                className="group relative text-sm text-slate-600 transition-colors hover:text-cyan-700"
               >
-                <span>{item}</span>
-                <span
-                  className="absolute -bottom-1 left-0 w-0 h-0.5 bg-cyan-600 transition-all duration-300 group-hover:w-full"
-                ></span>
+                {link.label}
+                <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-cyan-600 transition-all duration-300 group-hover:w-full" />
               </a>
             ))}
           </div>
 
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/login')}
-              className="px-5 py-2 text-gray-700 hover:text-cyan-600 transition-all duration-300 relative group"
-            >
-              <span>Login</span>
-            </button>
+          <div className="hidden items-center gap-3 md:flex">
+            {/* A signed-in visitor landing here is offered their dashboard rather
+                than a sign-in link that would just bounce them onward. */}
+            {user ? (
+              <button
+                type="button"
+                onClick={() => go('/app/dashboard')}
+                className="inline-flex items-center gap-2 rounded-full bg-cyan-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-cyan-700"
+              >
+                <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                Dashboard
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => go('/login')}
+                  className="inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm text-slate-700 transition-colors hover:text-cyan-700"
+                >
+                  <LogIn className="h-4 w-4" aria-hidden="true" />
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => go('/hospital-register')}
+                  className="group inline-flex items-center gap-1.5 rounded-full bg-cyan-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-cyan-700"
+                >
+                  Register hospital
+                  <ArrowRight
+                    className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </button>
+              </>
+            )}
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-700 hover:text-cyan-600 transition-colors"
-            >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-expanded={open}
+            className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 md:hidden"
+          >
+            {open ? (
+              <X className="h-6 w-6" aria-hidden="true" />
+            ) : (
+              <Menu className="h-6 w-6" aria-hidden="true" />
+            )}
+          </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="md:hidden bg-white shadow-lg">
-          <div className="px-4 pt-2 pb-4 space-y-2">
-            {['Home', 'Features', 'Services', 'About', 'Contact'].map((item) => (
+      {open && (
+        <div className="border-t border-slate-100 bg-white shadow-lg md:hidden">
+          <div className="space-y-1 px-4 py-3">
+            {LINKS.map((link) => (
               <a
-                key={item}
-                href={`#${item.toLowerCase()}`}
-                className="block px-3 py-2 rounded-md text-gray-700 hover:bg-cyan-50 hover:text-cyan-600 transition-colors"
+                key={link.label}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className="block rounded-lg px-3 py-2.5 text-sm text-slate-700 transition-colors hover:bg-cyan-50 hover:text-cyan-700"
               >
-                {item}
+                {link.label}
               </a>
             ))}
 
-            <div className="pt-4 space-y-2">
-              <button
-                onClick={() => navigate('/login')}
-                className="w-full px-5 py-2 text-gray-700 border border-gray-300 rounded-full hover:border-cyan-400 transition-colors"
-              >
-                Login
-              </button>
+            <div className="space-y-2 border-t border-slate-100 pt-3">
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => go('/app/dashboard')}
+                  className="w-full rounded-full bg-cyan-600 px-5 py-2.5 text-sm font-medium text-white"
+                >
+                  Go to dashboard
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => go('/login')}
+                    className="w-full rounded-full border border-slate-300 px-5 py-2.5 text-sm text-slate-700"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => go('/hospital-register')}
+                    className="w-full rounded-full bg-cyan-600 px-5 py-2.5 text-sm font-medium text-white"
+                  >
+                    Register hospital
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

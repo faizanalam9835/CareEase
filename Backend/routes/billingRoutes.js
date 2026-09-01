@@ -1,48 +1,41 @@
 const express = require('express');
 const {
   createInvoice,
+  createInvoiceFromAppointment,
+  getAllInvoices,
   getInvoiceById,
   getInvoicesByPatient,
-  updatePaymentStatus,
+  updateInvoice,
+  recordPayment,
+  cancelInvoice,
   getFinancialDashboard
 } = require('../controllers/billingController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Create invoice
-router.post('/invoices',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST'),
-  createInvoice
-);
+router.use(authenticateToken);
 
-// Get invoice by ID
-router.get('/invoices/:id',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'),
-  getInvoiceById
-);
+const BILLING_STAFF = ['HOSPITAL_ADMIN', 'RECEPTIONIST'];
+const BILLING_VIEWERS = ['HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR', 'PHARMACIST'];
 
-// Get invoices by patient ID
-router.get('/patients/:patientId/invoices',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR'),
-  getInvoicesByPatient
-);
+router.get('/dashboard', authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST'), getFinancialDashboard);
 
-// Update payment status
-router.put('/invoices/:id/payment',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN', 'RECEPTIONIST'),
-  updatePaymentStatus
-);
+router.get('/invoices', authorizeRoles(...BILLING_VIEWERS), getAllInvoices);
+router.get('/invoices/:id', authorizeRoles(...BILLING_VIEWERS), getInvoiceById);
+router.get('/patients/:patientId/invoices', authorizeRoles(...BILLING_VIEWERS), getInvoicesByPatient);
 
-// Get financial dashboard
-router.get('/dashboard',
-  authenticateToken,
-  authorizeRoles('HOSPITAL_ADMIN'),
-  getFinancialDashboard
+router.post('/invoices', authorizeRoles(...BILLING_STAFF), createInvoice);
+router.post(
+  '/invoices/from-appointment/:appointmentId',
+  authorizeRoles(...BILLING_STAFF),
+  createInvoiceFromAppointment
 );
+router.post('/invoices/:id/payments', authorizeRoles(...BILLING_STAFF), recordPayment);
+router.post('/invoices/:id/cancel', authorizeRoles('HOSPITAL_ADMIN'), cancelInvoice);
+
+router.put('/invoices/:id', authorizeRoles(...BILLING_STAFF), updateInvoice);
+// Kept for the previous client, which called PUT .../payment to settle an invoice.
+router.put('/invoices/:id/payment', authorizeRoles(...BILLING_STAFF), recordPayment);
 
 module.exports = router;

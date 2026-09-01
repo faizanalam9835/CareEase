@@ -1,174 +1,230 @@
-const Hospital = require('../models/Hospital');
-const User = require('../models/User'); // ✅ ADD THIS LINE
-const { resend } = require('../utils/resendClient');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
-const bcrypt = require('bcryptjs');
 
-// Hospital Self-Registration
-const registerHospital = async (req, res) => {
-  try {
-    console.log("📥 Incoming Request Body:", req.body);
+const Hospital = require('../models/Hospital');
+const User = require('../models/User');
+const Patient = require('../models/Patient');
+const Appointment = require('../models/Appointment');
+const config = require('../config/env');
+const { ApiError, asyncHandler } = require('../utils/apiError');
+const { sendMail, sendMailAsync } = require('../utils/mailer');
+const templates = require('../utils/emailTemplates');
+const { generateTemporaryPassword } = require('../utils/generateToken');
+const { logActivity } = require('../utils/activityLog');
 
-    const { name, address, contactNumber, adminEmail, licenseNumber } = req.body;
+/** Tenant ids look like TA1B2C3D - short, readable and easy to type at sign-in. */
+const buildTenantId = () => `T${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
-    if (!name || !address || !contactNumber || !adminEmail || !licenseNumber) {
-      return res.status(400).json({
-        error: 'All fields are required'
-      });
-    }
+/** POST /api/hospitals/register */
+const registerHospital = asyncHandler(async (req, res) => {
+  const { name, address, city, state, contactNumber, adminEmail, licenseNumber, website, bedCapacity } =
+    req.body;
 
-    const existingHospital = await Hospital.findOne({
-      $or: [{ licenseNumber }, { adminEmail }]
-    });
-
-    if (existingHospital) {
-      return res.status(400).json({
-        error: 'Hospital with this license number or email already exists'
-      });
-    }
-
-    const tenantId = `T${uuidv4().split('-')[0].toUpperCase()}`;
-    const verificationToken = uuidv4();
-    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const verificationLink = `https://care-ease-six.vercel.app/verify/${verificationToken}`;
-
-    const newHospital = new Hospital({
-      name,
-      address,
-      contactNumber,
-      adminEmail,
-      licenseNumber,
-      tenantId,
-      verificationToken,
-      verificationTokenExpiry,
-      status: 'PENDING'
-    });
-
-    await newHospital.save();
-
-    // ✅ response turant bhej do
-    res.status(201).json({
-      message: 'Hospital registered successfully. Please check your email for verification.',
-      tenantId,
-      hospitalId: newHospital._id,
-      status: 'PENDING',
-      verificationToken,
-      verificationLink
-    });
-
-    // ✅ email background me bhejo
-    setImmediate(async () => {
-      try {
-        console.log("📧 Sending email to:", adminEmail);
-
-        const emailResponse = await resend.emails.send({
-          from: `HMS <${process.env.EMAIL_USER}>`,
-          to: adminEmail,
-          subject: 'Verify Your Hospital Registration - HMS',
-          html: `
-            <h2>Welcome to Hospital Management System!</h2>
-            <p>Dear ${name},</p>
-            <p>Please verify your email:</p>
-            <a href="${verificationLink}" 
-              style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-              Verify Email
-            </a>
-            <p>Token: ${verificationToken}</p>
-            <p><strong>Tenant ID:</strong> ${tenantId}</p>
-          `
-        });
-
-        console.log("✅ Email response:", emailResponse);
-      } catch (emailError) {
-        console.error("❌ Email sending failed:", emailError);
-      }
-    });
-
-  } catch (error) {
-    console.error("💥 Hospital registration error:", error);
-    return res.status(500).json({
-      error: 'Internal server error during registration'
-    });
+  if (!name || !address || !contactNumber || !adminEmail || !licenseNumber) {
+    throw ApiError.badRequest(
+      'Hospital name, address, contact number, administrator e-mail and licence number are required'
+    );
   }
-};
 
-// Email Verification
-const verifyHospital = async (req, res) => {
-  try {
-    console.log("hello")
-    const { token } = req.params;
+  const email = String(adminEmail).toLowerCase().trim();
+  const licence = String(licenseNumber).trim();
 
-    const hospital = await Hospital.findOne({
-      verificationToken: token
-    });
+  const existing = await Hospital.findOne({
+    $or: [{ licenseNumber: licence }, { adminEmail: email }]
+  });
+  if (existing) {
+    throw ApiError.conflict(
+      existing.adminEmail === email
+        ? 'A hospital is already registered with this administrator e-mail'
+        : 'A hospital is already registered with this licence number'
+    );
+  }
 
-    if (!hospital) {
-      return res.status(400).json({
-        error: 'Invalid verification token'
-      });
-    }
+  // A tenant id collision is astronomically unlikely, but retrying costs nothing.
+  let tenantId = buildTenantId();
+  // eslint-disable-next-line no-await-in-loop
+  while (await Hospital.exists({ tenantId })) tenantId = buildTenantId();
 
-    // ✅ AUTO CREATE ADMIN USER
-    const tempPassword = 'Admin@123'; // Temporary password
-    const hashedPassword = await bcrypt.hash(tempPassword, 12)
-    const adminUser = new User({
-      firstName: 'Admin',
-      lastName: hospital.name,
+  const verificationToken = uuidv4();
+  const hospital = await Hospital.create({
+    name,
+    address,
+    city,
+    state,
+    contactNumber,
+    adminEmail: email,
+    licenseNumber: licence,
+    website,
+    bedCapacity: bedCapacity || 50,
+    tenantId,
+    verificationToken,
+    verificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    status: 'PENDING'
+  });
+
+  const verificationLink = `${config.clientUrl}/verify/${verificationToken}`;
+
+  // Responding first keeps registration instant even when SMTP is slow.
+  res.status(201).json({
+    success: true,
+    message: 'Hospital registered. Check your inbox to verify and activate the workspace.',
+    tenantId,
+    hospitalId: hospital._id,
+    status: hospital.status,
+    // Surfaced so the demo can be completed without a working mailbox.
+    verificationToken,
+    verificationLink
+  });
+
+  const mail = templates.hospitalVerification({
+    hospitalName: name,
+    tenantId,
+    verificationLink,
+    token: verificationToken
+  });
+  sendMailAsync({ to: email, ...mail });
+});
+
+/**
+ * GET /api/hospitals/verify/:token
+ *
+ * Activates the workspace and creates the first administrator. Re-running it
+ * for an already-verified hospital is a no-op rather than a 500 - the old code
+ * threw a duplicate-key error if the link was opened twice.
+ */
+const verifyHospital = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+
+  const hospital = await Hospital.findOne({ verificationToken: token }).select(
+    '+verificationToken +verificationTokenExpiry'
+  );
+
+  if (!hospital) {
+    const alreadyActive = await Hospital.findOne({ status: 'ACTIVE', verifiedAt: { $ne: null } })
+      .sort({ verifiedAt: -1 })
+      .limit(1);
+    throw ApiError.badRequest(
+      alreadyActive
+        ? 'This verification link has already been used. Try signing in instead.'
+        : 'This verification link is not valid.'
+    );
+  }
+
+  if (hospital.verificationTokenExpiry && hospital.verificationTokenExpiry < new Date()) {
+    throw ApiError.badRequest('This verification link has expired. Please register again.');
+  }
+
+  const existingAdmin = await User.findOne({
+    tenantId: hospital.tenantId,
+    email: hospital.adminEmail
+  });
+
+  let temporaryPassword = null;
+  let adminUser = existingAdmin;
+
+  if (!existingAdmin) {
+    temporaryPassword = generateTemporaryPassword();
+    adminUser = await User.create({
+      firstName: 'Hospital',
+      lastName: 'Administrator',
       email: hospital.adminEmail,
+      professionalEmail: hospital.adminEmail,
       phone: hospital.contactNumber,
-      password: hashedPassword,
+      password: temporaryPassword,
       department: 'Administration',
+      designation: 'Administrator',
       roles: ['HOSPITAL_ADMIN'],
       tenantId: hospital.tenantId,
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      mustChangePassword: true
     });
+  }
 
-    await adminUser.save();
+  hospital.status = 'ACTIVE';
+  hospital.verifiedAt = hospital.verifiedAt || new Date();
+  hospital.verificationToken = undefined;
+  hospital.verificationTokenExpiry = undefined;
+  await hospital.save();
 
-    // Update hospital status
-    hospital.status = 'ACTIVE';
-    hospital.verificationToken = undefined;
-    hospital.verificationTokenExpiry = undefined;
-    await hospital.save();
-
-    res.json({
-      message: 'Hospital verified successfully! Admin user created.',
-      hospitalId: hospital._id,
+  if (temporaryPassword) {
+    const mail = templates.hospitalActivated({
+      hospitalName: hospital.name,
       tenantId: hospital.tenantId,
-      adminUser: {
-        id: adminUser._id,
-        email: adminUser.email,
-        password: tempPassword,
-        singlepass:hashedPassword, // Temporary, real app mein email bhejna chahiye
-        roles: adminUser.roles
-      }
+      adminEmail: hospital.adminEmail,
+      temporaryPassword
     });
-
-  } catch (error) {
-    console.log(error)
-    console.error('Email verification error:', error);
-    res.status(500).json({
-      error: 'Internal server error during verification',
-      details: error.message // ✅ Error details bhi bhejo
-    });
+    await sendMail({ to: hospital.adminEmail, ...mail });
   }
-};
 
-// Get all hospitals (Super Admin ke liye)
-const getAllHospitals = async (req, res) => {
-  try {
-    const hospitals = await Hospital.find({}, { verificationToken: 0, verificationTokenExpiry: 0 });
-    
-    res.json({
-      count: hospitals.length,
-      hospitals
-    });
-  } catch (error) {
-    console.error('Get hospitals error:', error);
-    res.status(500).json({
-      error: 'Internal server error'
-    });
+  res.json({
+    success: true,
+    message: 'Hospital verified. Your administrator account is ready.',
+    hospital: {
+      id: hospital._id,
+      name: hospital.name,
+      tenantId: hospital.tenantId,
+      status: hospital.status
+    },
+    adminUser: {
+      id: adminUser._id,
+      email: adminUser.email,
+      roles: adminUser.roles,
+      // Only present the first time; afterwards the admin must use their own password.
+      temporaryPassword
+    }
+  });
+});
+
+/** GET /api/hospitals/me - profile of the signed-in user's own hospital. */
+const getMyHospital = asyncHandler(async (req, res) => {
+  const hospital = await Hospital.findOne({ tenantId: req.user.tenantId });
+  if (!hospital) throw ApiError.notFound('Hospital profile not found');
+
+  const [staffCount, patientCount, appointmentCount] = await Promise.all([
+    User.countDocuments({ tenantId: req.user.tenantId }),
+    Patient.countDocuments({ tenantId: req.user.tenantId }),
+    Appointment.countDocuments({ tenantId: req.user.tenantId })
+  ]);
+
+  res.json({
+    success: true,
+    hospital,
+    summary: { staffCount, patientCount, appointmentCount }
+  });
+});
+
+/** PUT /api/hospitals/me - admin edits the hospital profile. */
+const updateMyHospital = asyncHandler(async (req, res) => {
+  const hospital = await Hospital.findOne({ tenantId: req.user.tenantId });
+  if (!hospital) throw ApiError.notFound('Hospital profile not found');
+
+  const editable = ['name', 'address', 'city', 'state', 'contactNumber', 'website', 'bedCapacity'];
+  for (const field of editable) {
+    if (req.body[field] !== undefined) hospital[field] = req.body[field];
   }
-};
+  await hospital.save();
 
-module.exports = { registerHospital, verifyHospital, getAllHospitals };
+  logActivity({
+    user: req.user,
+    action: 'HOSPITAL_UPDATED',
+    entityType: 'HOSPITAL',
+    entityId: hospital._id,
+    description: `Hospital profile updated`
+  });
+
+  res.json({ success: true, message: 'Hospital profile updated', hospital });
+});
+
+/** GET /api/hospitals/check-license/:licenseNumber - live availability check for the signup form. */
+const checkLicense = asyncHandler(async (req, res) => {
+  const taken = await Hospital.exists({ licenseNumber: String(req.params.licenseNumber).trim() });
+  res.json({ success: true, available: !taken });
+});
+
+module.exports = {
+  registerHospital,
+  verifyHospital,
+  getMyHospital,
+  updateMyHospital,
+  checkLicense
+};

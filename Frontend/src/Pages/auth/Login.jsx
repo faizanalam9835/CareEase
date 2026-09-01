@@ -1,192 +1,317 @@
-import React, { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
-import { Mail, Lock, Eye, EyeOff, Heart } from 'lucide-react'
-import { toast } from 'react-hot-toast'
-import Button from '../../components/ui/Button'
-import Input from '../../components/ui/Input'
-import { useAuth } from '../../context/AuthContext'
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Building2,
+  HeartPulse,
+  ShieldCheck,
+  Pill,
+  BarChart3,
+  Users,
+  ArrowRight,
+  Check,
+  Copy,
+  Info,
+  Stethoscope,
+  ClipboardList,
+  UserCog,
+  ConciergeBell
+} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { authService } from '../../services';
+import { Button, Input, Badge, Spinner } from '../../components/ui';
+import { HOME_PATH } from '../../lib/navigation';
+
+const ROLE_ICONS = {
+  HOSPITAL_ADMIN: UserCog,
+  DOCTOR: Stethoscope,
+  NURSE: HeartPulse,
+  RECEPTIONIST: ConciergeBell,
+  PHARMACIST: Pill
+};
+
+const HIGHLIGHTS = [
+  { icon: Building2, label: 'Multi-tenant', copy: 'Each hospital fully isolated' },
+  { icon: ShieldCheck, label: 'Role-based access', copy: 'Down to the department' },
+  { icon: Pill, label: 'Pharmacy', copy: 'Stock, expiry and dispensing' },
+  { icon: BarChart3, label: 'Live analytics', copy: 'Revenue and occupancy' }
+];
 
 const Login = () => {
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [demo, setDemo] = useState(null);
+  const [demoLoading, setDemoLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
-  const navigate = useNavigate()
-  const { login } = useAuth()
+  const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const { register, handleSubmit, formState: { errors } } = useForm()
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors }
+  } = useForm({ defaultValues: { email: '', password: '', tenantId: '' } });
 
-  const onSubmit = async (data) => {
-    setLoading(true)
+  // The sign-in screen asks for a Hospital ID that a reviewer has no way of
+  // knowing, so the seeded demo accounts are listed here and fill the form on
+  // a single click.
+  useEffect(() => {
+    authService
+      .demoCredentials()
+      .then((data) => setDemo(data.demoMode ? data : null))
+      .catch(() => setDemo(null))
+      .finally(() => setDemoLoading(false));
+  }, []);
 
+  const fillFromDemoAccount = (account) => {
+    setValue('email', account.email, { shouldValidate: true });
+    setValue('password', account.password, { shouldValidate: true });
+    setValue('tenantId', demo.tenantId, { shouldValidate: true });
+    toast.success(`Filled in the ${account.label} account`);
+  };
+
+  const copyTenant = async () => {
     try {
-      const response = await login(data)
-
-      if (!response.success) {
-        toast.error(response.error || "Login failed")
-        return
-      }
-
-      toast.success("Welcome back!")
-
-      // ✅ NAVIGATION HERE (CORRECT)
-      navigate('/app/dashboard', { replace: true })
-
-    } catch (error) {
-      toast.error("Something went wrong")
-    } finally {
-      setLoading(false)
+      await navigator.clipboard.writeText(demo.tenantId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy - please select the ID and copy it manually');
     }
-  }
+  };
+
+  const onSubmit = async (values) => {
+    setSubmitting(true);
+    const result = await login(values);
+    setSubmitting(false);
+
+    if (!result.success) {
+      toast.error(result.error || 'Could not sign you in');
+      return;
+    }
+
+    toast.success(`Welcome back, ${result.user.firstName}`);
+    navigate(HOME_PATH, { replace: true });
+  };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* LEFT SIDE SAME */}
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      {/* Form */}
+      <div className="flex flex-1 flex-col justify-center bg-white px-5 py-10 sm:px-10 lg:px-14 xl:px-20">
+        <div className="mx-auto w-full max-w-md">
+          <Link to="/" className="mb-8 inline-flex items-center gap-2.5">
+            <span className="rounded-xl bg-cyan-600 p-2 text-white">
+              <HeartPulse className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block text-lg font-semibold leading-tight text-slate-900">
+                CareEase
+              </span>
+              <span className="block text-xs leading-tight text-slate-400">
+                Hospital Management System
+              </span>
+            </span>
+          </Link>
 
-      <div className="flex-1 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8 xl:px-12 bg-white">
-        <div className="mx-auto w-full max-w-sm sm:max-w-md lg:max-w-none lg:w-96">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Sign in</h1>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Use the credentials your hospital administrator gave you.
+          </p>
 
-          <div className="mt-8">
-            <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-4" noValidate>
+            <Input
+              label="E-mail address"
+              type="email"
+              autoComplete="username"
+              icon={Mail}
+              placeholder="you@hospital.health"
+              error={errors.email}
+              required
+              {...register('email', {
+                required: 'Enter your e-mail address',
+                pattern: { value: /^\S+@\S+\.\S+$/, message: 'That does not look like an e-mail address' }
+              })}
+            />
 
-              <div className="space-y-4">
-                <Input
-                  label="Email Address"
-                  type="email"
-                  icon={<Mail className="h-4 w-4 text-cyan-500" />}
-                  placeholder="admin@hospital.com"
-                  error={errors.email}
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^\S+@\S+$/i,
-                      message: 'Invalid email address'
-                    }
-                  })}
-                />
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              icon={Lock}
+              placeholder="Your password"
+              error={errors.password}
+              required
+              rightSlot={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </button>
+              }
+              {...register('password', { required: 'Enter your password' })}
+            />
 
-                <Input
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  icon={<Lock className="h-4 w-4 text-cyan-500" />}
-                  placeholder="Enter your password"
-                  error={errors.password}
-                  rightIcon={
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff /> : <Eye />}
-                    </button>
-                  }
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters'
-                    }
-                  })}
-                />
+            <Input
+              label="Hospital ID"
+              icon={Building2}
+              placeholder="TDEMO001"
+              hint="The tenant ID issued when your hospital was registered."
+              error={errors.tenantId}
+              required
+              className="uppercase-input"
+              {...register('tenantId', {
+                required: 'Enter your Hospital ID',
+                pattern: {
+                  value: /^T[A-Za-z0-9]{3,}$/,
+                  message: 'A Hospital ID starts with T, for example TDEMO001'
+                }
+              })}
+            />
 
-                <Input
-                  label="Hospital ID"
-                  type="text"
-                  placeholder="TABC123"
-                  icon={<Heart className="h-4 w-4 text-cyan-500" />}
-                  error={errors.tenantId}
-                  {...register('tenantId', {
-                    required: 'Hospital ID is required'
-                  })}
-                />
+            <Button type="submit" size="lg" loading={submitting} className="w-full">
+              {submitting ? 'Signing in' : 'Sign in'}
+              {!submitting && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+            </Button>
+          </form>
+
+          {/* Demo accounts */}
+          {demoLoading ? (
+            <div className="mt-7 flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 py-6 text-sm text-slate-400">
+              <Spinner className="h-4 w-4" />
+              Checking for demo accounts
+            </div>
+          ) : demo ? (
+            <section className="mt-7 rounded-xl border border-cyan-100 bg-cyan-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-cyan-900">
+                  <Info className="h-4 w-4" aria-hidden="true" />
+                  Demo accounts
+                </h2>
+                <button
+                  type="button"
+                  onClick={copyTenant}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 font-mono text-xs font-semibold text-cyan-800 ring-1 ring-cyan-200 transition-colors hover:bg-cyan-100"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {demo.tenantId}
+                </button>
               </div>
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 rounded-lg font-semibold"
-              >
-                {loading ? "Loading..." : "Access Dashboard"}
-              </Button>
+              <p className="mt-1.5 text-xs leading-relaxed text-cyan-800/80">
+                {demo.seeded
+                  ? 'Click any role to fill the form, then sign in. Each role sees a different slice of the system.'
+                  : demo.hint}
+              </p>
 
-            </form>
-          </div>
+              {demo.seeded && (
+                <ul className="mt-3 space-y-1.5">
+                  {demo.accounts.map((account) => {
+                    const Icon = ROLE_ICONS[account.role] || Users;
+                    return (
+                      <li key={account.email}>
+                        <button
+                          type="button"
+                          onClick={() => fillFromDemoAccount(account)}
+                          disabled={!account.available}
+                          className="flex w-full items-center gap-3 rounded-lg border border-transparent bg-white px-3 py-2.5 text-left shadow-sm transition-all hover:border-cyan-300 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <span className="rounded-lg bg-cyan-50 p-1.5 text-cyan-600">
+                            <Icon className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-slate-900">
+                              {account.label}
+                            </span>
+                            <span className="block truncate font-mono text-[11px] text-slate-500">
+                              {account.email} / {account.password}
+                            </span>
+                          </span>
+                          <ArrowRight
+                            className="h-4 w-4 shrink-0 text-slate-300"
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          ) : null}
+
+          <p className="mt-7 text-center text-sm text-slate-500">
+            New hospital?{' '}
+            <Link
+              to="/hospital-register"
+              className="font-medium text-cyan-700 underline-offset-2 hover:underline"
+            >
+              Register your hospital
+            </Link>
+          </p>
         </div>
       </div>
 
-      {/* RIGHT SIDE SAME */}
-      <div className="hidden lg:flex flex-1 flex-col justify-center items-center bg-gradient-to-br from-[#B2EBF2] to-cyan-200 p-8 xl:p-12">
-        <div className="max-w-md text-center w-full">
-          <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-2xl border border-white/40">
-            <div className="bg-white rounded-full p-3 sm:p-4 w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 shadow-lg">
-              <Heart className="h-8 w-8 sm:h-12 sm:w-12 text-cyan-600 mx-auto" />
-            </div>
+      {/* Brand panel */}
+      <div className="relative hidden flex-1 flex-col justify-center overflow-hidden bg-gradient-to-br from-cyan-600 via-cyan-700 to-teal-800 px-14 lg:flex">
+        <div
+          className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-teal-400/20 blur-3xl"
+          aria-hidden="true"
+        />
 
-            <h1 className="text-2xl sm:text-3xl xl:text-4xl font-bold text-cyan-900 mb-3 sm:mb-4">
-              CareEase HMS
-            </h1>
+        <div className="relative max-w-lg">
+          <Badge tone="cyan" className="bg-white/15 text-white ring-white/25">
+            <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+            Secure multi-tenant platform
+          </Badge>
 
-            <p className="text-sm sm:text-base xl:text-lg text-cyan-800 mb-4 sm:mb-6 leading-relaxed">
-              Streamline your hospital operations with our comprehensive management system.
-              Built for modern healthcare facilities.
-            </p>
+          <h2 className="mt-5 text-3xl font-semibold leading-tight tracking-tight text-white xl:text-4xl">
+            Run the whole hospital from one place.
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-cyan-50/90">
+            Registration through to discharge — patients, appointments, prescriptions, pharmacy
+            stock and billing, with strict department-level access control throughout.
+          </p>
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-cyan-800">
-              <div className="flex items-center justify-center p-2 sm:p-3 bg-white/50 rounded-lg">
-                <span className="truncate">:hospital: Multi-Tenant</span>
+          <dl className="mt-10 grid grid-cols-2 gap-4">
+            {HIGHLIGHTS.map(({ icon: Icon, label, copy }) => (
+              <div key={label} className="rounded-xl border border-white/15 bg-white/10 p-4">
+                <Icon className="h-5 w-5 text-cyan-100" aria-hidden="true" />
+                <dt className="mt-2.5 text-sm font-semibold text-white">{label}</dt>
+                <dd className="mt-0.5 text-xs leading-relaxed text-cyan-100/80">{copy}</dd>
               </div>
-              <div className="flex items-center justify-center p-2 sm:p-3 bg-white/50 rounded-lg">
-                <span className="truncate">:pill: Pharmacy</span>
-              </div>
-              <div className="flex items-center justify-center p-2 sm:p-3 bg-white/50 rounded-lg">
-                <span className="truncate">:bar_chart: Analytics</span>
-              </div>
-              <div className="flex items-center justify-center p-2 sm:p-3 bg-white/50 rounded-lg">
-                <span className="truncate">:closed_lock_with_key: Secure</span>
-              </div>
-            </div>
-          </div>
+            ))}
+          </dl>
 
-          <div className="mt-6 sm:mt-8 text-cyan-800/80 text-xs sm:text-sm">
-            <p>Trusted by 500+ hospitals nationwide</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Branding - Show only on mobile */}
-      <div className="lg:hidden bg-gradient-to-br from-[#B2EBF2] to-cyan-200 py-8 px-6">
-        <div className="max-w-sm mx-auto text-center">
-          <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-white/40">
-            <div className="bg-white rounded-full p-3 w-16 h-16 mx-auto mb-4 shadow-lg">
-              <Heart className="h-8 w-8 text-cyan-600 mx-auto" />
-            </div>
-
-            <h1 className="text-2xl font-bold text-cyan-900 mb-3">
-              CareEase HMS
-            </h1>
-
-            <p className="text-sm text-cyan-800 mb-4 leading-relaxed">
-              Streamline your hospital operations with our comprehensive management system.
-            </p>
-
-            <div className="grid grid-cols-2 gap-2 text-xs text-cyan-800">
-              <div className="flex items-center justify-center p-2 bg-white/50 rounded-lg">
-                <span>:hospital: Multi-Tenant</span>
-              </div>
-              <div className="flex items-center justify-center p-2 bg-white/50 rounded-lg">
-                <span>:pill: Pharmacy</span>
-              </div>
-              <div className="flex items-center justify-center p-2 bg-white/50 rounded-lg">
-                <span>:bar_chart: Analytics</span>
-              </div>
-              <div className="flex items-center justify-center p-2 bg-white/50 rounded-lg">
-                <span>:closed_lock_with_key: Secure</span>
-              </div>
-            </div>
-          </div>
+          <p className="mt-10 flex items-center gap-2 text-sm text-cyan-100/70">
+            <ClipboardList className="h-4 w-4" aria-hidden="true" />
+            Every action is written to an audit trail.
+          </p>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

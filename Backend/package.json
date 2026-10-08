@@ -2,14 +2,16 @@
   "name": "careease-backend",
   "version": "2.0.0",
   "description": "CareEase Hospital Management System - REST API",
-  "main": "Server.js",
+  "main": "dist/Server.js",
   "scripts": {
-    "start": "node Server.js",
-    "dev": "node --watch Server.js",
-    "seed": "node seed/seed.js",
-    "seed:reset": "node seed/seed.js --reset",
-    "demo": "node scripts/demo.js",
-    "test": "node tests/api.test.js"
+    "build": "tsc",
+    "start": "node dist/Server.js",
+    "dev": "tsx watch Server.ts",
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx seed/seed.ts",
+    "seed:reset": "tsx seed/seed.ts --reset",
+    "demo": "tsx scripts/demo.ts",
+    "test": "tsx tests/api.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +31,14 @@
     "node": ">=18"
   },
   "devDependencies": {
-    "mongodb-memory-server": "^10.1.4"
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.6.2",
+    "@types/nodemailer": "^8.0.2",
+    "@types/uuid": "^10.0.0",
+    "mongodb-memory-server": "^10.1.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
   }
 }

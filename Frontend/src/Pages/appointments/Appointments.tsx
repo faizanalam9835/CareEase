@@ -11,7 +11,8 @@ import {
   CircleCheck,
   CircleX,
   Receipt,
-  CalendarClock
+  CalendarClock,
+  PhoneCall
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentService, billingService } from '../../services';
@@ -21,6 +22,7 @@ import type { Appointment, AppointmentStatus, PageMeta, Ref } from '../../types'
 import { useMeta } from '../../hooks/useMeta';
 import { useDebounce } from '../../hooks/useDebounce';
 import AppointmentForm from './AppointmentForm';
+import CallDetails from '../calls/CallDetails';
 import StatsCard from '../../components/shared/StatsCard';
 import {
   Card,
@@ -36,12 +38,10 @@ import {
   LoadingState,
   ErrorState,
   EmptyState,
-  ConfirmDialog,
-  Modal,
-  Textarea
+  ConfirmDialog
 } from '../../components/ui';
 import type { TableColumn } from '../../components/ui';
-import { formatDate, formatTime, APPOINTMENT_TONE } from '../../lib/format';
+import { formatDate, formatTime, APPOINTMENT_TONE, PAYMENT_TONE } from '../../lib/format';
 
 /** The referenced document when the API populated it, otherwise undefined. */
 const populated = <T extends object>(ref: Ref<T> | undefined) => (isPopulated(ref) ? ref : undefined);
@@ -52,6 +52,7 @@ const COLUMNS: TableColumn[] = [
   { key: 'doctor', label: 'Doctor' },
   { key: 'reason', label: 'Reason' },
   { key: 'status', label: 'Status' },
+  { key: 'payment', label: 'Payment' },
   { key: 'actions', label: '', align: 'right' }
 ];
 
@@ -74,13 +75,14 @@ const Appointments = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [confirm, setConfirm] = useState<Appointment | null>(null);
-  const [cancelling, setCancelling] = useState<Appointment | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
   const [working, setWorking] = useState(false);
+  const [callFor, setCallFor] = useState<Appointment | null>(null);
 
   const debouncedSearch = useDebounce(search);
   const canBook = hasRole(['HOSPITAL_ADMIN', 'RECEPTIONIST', 'DOCTOR']);
   const canBill = hasRole(['HOSPITAL_ADMIN', 'RECEPTIONIST']);
+  // Nurses may only change the status, so they get the form with the details locked.
+  const canEdit = canBook || hasRole(['NURSE']);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,49 +127,6 @@ const Appointments = () => {
       appointment.reason?.toLowerCase().includes(term)
     );
   });
-
-  const setStatus = async (appointment: Appointment, status: AppointmentStatus) => {
-    // Cancelling needs a reason, so it goes through its own dialog.
-    if (status === 'Cancelled') {
-      setCancelling(appointment);
-      setCancelReason('');
-      return;
-    }
-    try {
-      const result = await appointmentService.setStatus(appointment._id, { status });
-      toast.success(result.message ?? '');
-      setState((current) => ({
-        ...current,
-        appointments: current.appointments.map((entry) =>
-          entry._id === appointment._id ? { ...entry, status } : entry
-        )
-      }));
-    } catch (err) {
-      toast.error(asApiError(err).message);
-    }
-  };
-
-  const confirmCancel = async () => {
-    if (!cancelling) return;
-    if (!cancelReason.trim()) {
-      toast.error('Please give a reason');
-      return;
-    }
-    setWorking(true);
-    try {
-      await appointmentService.setStatus(cancelling._id, {
-        status: 'Cancelled',
-        cancellationReason: cancelReason
-      });
-      toast.success('Appointment cancelled');
-      setCancelling(null);
-      load();
-    } catch (err) {
-      toast.error(asApiError(err).message);
-    } finally {
-      setWorking(false);
-    }
-  };
 
   const remove = async () => {
     if (!confirm) return;
@@ -299,7 +258,7 @@ const Appointments = () => {
           <>
             <Table columns={COLUMNS}>
               {visible.map((appointment) => (
-                <tr key={appointment._id} className="transition-colors hover:bg-slate-50">
+                <tr key={appointment._id}>
                   <Td>
                     <p className="font-medium text-slate-900">
                       {formatDate(appointment.appointmentDate)}
@@ -338,28 +297,26 @@ const Appointments = () => {
                     </Badge>
                   </Td>
                   <Td>
-                    <select
-                      value={appointment.status}
-                      onChange={(event) => setStatus(appointment, event.target.value as AppointmentStatus)}
-                      aria-label={`Status of ${appointment.appointmentId}`}
-                      className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-200"
-                    >
-                      {meta.appointmentStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                    <Badge
-                      tone={APPOINTMENT_TONE[appointment.status] || 'slate'}
-                      className="mt-1.5"
-                    >
-                      {appointment.paymentStatus}
+                    <Badge tone={APPOINTMENT_TONE[appointment.status] || 'slate'}>{appointment.status}</Badge>
+                  </Td>
+                  <Td>
+                    <Badge tone={PAYMENT_TONE[appointment.paymentStatus || 'Pending'] || 'slate'}>
+                      {appointment.paymentStatus || 'Pending'}
                     </Badge>
                   </Td>
                   <Td className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {canBill && appointment.status === 'Completed' && (
+                    <div className="flex items-center justify-end gap-0.5">
+                      {canBill && (appointment.source === 'Staff' ? <span className="w-10" aria-hidden="true" /> : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={PhoneCall}
+                          aria-label="Call details"
+                          title="Call recording and transcript"
+                          onClick={() => setCallFor(appointment)}
+                        />
+                      ))}
+                      {canBill && (appointment.status !== 'Completed' ? <span className="w-10" aria-hidden="true" /> : (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -367,8 +324,8 @@ const Appointments = () => {
                           aria-label="Raise invoice"
                           onClick={() => raiseInvoice(appointment)}
                         />
-                      )}
-                      {canBook && (
+                      ))}
+                      {canEdit && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -386,7 +343,7 @@ const Appointments = () => {
                           variant="ghost"
                           icon={Trash2}
                           aria-label="Delete"
-                          className="text-red-500 hover:bg-red-50"
+                          className="text-red-500"
                           onClick={() => setConfirm(appointment)}
                         />
                       )}
@@ -411,37 +368,17 @@ const Appointments = () => {
         open={formOpen}
         appointment={editing}
         meta={meta}
+        statusOnly={!canBook}
         onClose={() => setFormOpen(false)}
         onSaved={load}
       />
 
-      <Modal
-        open={Boolean(cancelling)}
-        onClose={() => setCancelling(null)}
-        title="Cancel this appointment"
-        subtitle={cancelling?.appointmentId}
-        icon={CircleX}
-        size="sm"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setCancelling(null)} disabled={working}>
-              Keep it
-            </Button>
-            <Button variant="danger" onClick={confirmCancel} loading={working}>
-              Cancel appointment
-            </Button>
-          </>
-        }
-      >
-        <Textarea
-          label="Why is it being cancelled?"
-          required
-          rows={3}
-          value={cancelReason}
-          placeholder="Patient asked to reschedule"
-          onChange={(event) => setCancelReason(event.target.value)}
-        />
-      </Modal>
+      <CallDetails
+        key={callFor?._id}
+        appointmentId={callFor?._id}
+        appointmentLabel={callFor?.appointmentId}
+        onClose={() => setCallFor(null)}
+      />
 
       <ConfirmDialog
         open={Boolean(confirm)}

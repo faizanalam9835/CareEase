@@ -353,7 +353,7 @@ const CredentialsDialog = ({ open, onClose, details }: CredentialsDialogProps) =
     if (!details) return;
     try {
       await navigator.clipboard.writeText(
-        `Hospital ID: ${details.user.tenantId}\nE-mail: ${details.user.email}\nPassword: ${details.password}`
+        `E-mail: ${details.user.email}\nPassword: ${details.password}`
       );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -382,10 +382,6 @@ const CredentialsDialog = ({ open, onClose, details }: CredentialsDialogProps) =
       }
     >
       <dl className="space-y-2.5 rounded-lg bg-slate-50 p-4 text-sm">
-        <div className="flex justify-between gap-4">
-          <dt className="text-slate-500">Hospital ID</dt>
-          <dd className="font-mono font-medium text-slate-900">{details.user.tenantId}</dd>
-        </div>
         <div className="flex justify-between gap-4">
           <dt className="text-slate-500">E-mail</dt>
           <dd className="break-all font-medium text-slate-900">{details.user.email}</dd>

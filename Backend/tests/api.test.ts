@@ -19,6 +19,11 @@ const ROOT = path.join(__dirname, '..');
 // Set before config/env is loaded, so the request logger and the mail
 // console fallback stay quiet and the run is readable.
 process.env.NODE_ENV = 'test';
+// No Sarvam agents in tests, whatever the local .env says.
+process.env.SARVAM_APPS = '';
+// Mail goes to the console in tests, never to real inboxes.
+process.env.EMAIL_USER = '';
+process.env.EMAIL_PASS = '';
 process.env.VOICE_KEYS = 'TDEMO001=voice-test-key-demo-0000000000,TOTHER01=voice-test-key-other-000000000';
 
 // A plain (typed) require rather than an import, because imports are hoisted
@@ -131,13 +136,17 @@ const run = async () => {
     check('meta serves the shared enumerations', r.data?.meta?.departments?.length > 5, r.data);
 
     r = await call('GET', '/api/auth/demo-credentials');
-    check('demo credentials are listed', r.data?.accounts?.length === 5, r.data);
+    check('demo credentials are listed', r.data?.accounts?.length === 6 && r.data.accounts.some((a: Json) => a.role === 'SUPER_ADMIN' && a.available), r.data);
     check('every demo account exists in the database', r.data.accounts.every((a: Json) => a.available));
     const TENANT = r.data.tenantId;
 
     /* -------------------------------- login ------------------------------- */
     group('Authentication');
 
+    r = await call('POST', '/api/auth/login', {
+      body: { email: 'admin@careease.health', password: 'Admin@123' }
+    });
+    check('login needs no Hospital ID: the account decides the tenant', r.status === 200 && r.data.user?.tenantId === TENANT, r.data);
     r = await call('POST', '/api/auth/login', {
       body: { email: 'admin@careease.health', password: 'Admin@123', tenantId: TENANT }
     });
@@ -825,13 +834,49 @@ const run = async () => {
     check('a wrong voice key is rejected', r.status === 401, r.data);
 
     r = await voice('GET', '/api/voice/doctors', 'voice-test-key-demo-0000000000');
-    check('voice lists active doctors', r.status === 200 && r.data.doctors.length > 0, r.data);
-    const voiceDoctor = r.data.doctors[0];
+    check('voice lists active doctors as one text line with ids', r.status === 200 && /^Dr\. .*id [0-9a-f]{24}\)/.test(r.data.doctors), r.data);
+    const voiceDoctor = { id: String(r.data.doctors).match(/id ([0-9a-f]{24})/)?.[1] };
+    const onlyGeneral = (data: any) => /department General/.test(data.doctors) && !/department Cardiology/.test(data.doctors);
+
+    // fetch() refuses a GET body, so send it the raw way a voice platform might.
+    r = await new Promise<CallResult>((resolve, reject) => {
+      const payload = JSON.stringify({ department: 'General' });
+      const req = (require('http') as typeof import('http')).request(`${BASE}/api/voice/doctors`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), 'x-voice-key': 'voice-test-key-demo-0000000000' }
+      }, (res) => {
+        let raw = '';
+        res.on('data', (chunk) => { raw += chunk; });
+        res.on('end', () => resolve({ status: res.statusCode || 0, data: JSON.parse(raw) }));
+      });
+      req.on('error', reject);
+      req.end(payload);
+    });
+    check('a GET with the department in the JSON body still filters', r.status === 200 && onlyGeneral(r.data), r.data);
+
+    r = await voice('POST', '/api/voice/doctors', 'voice-test-key-demo-0000000000', { department: 'General' });
+    check('a POST with the department in the body filters too', r.status === 200 && onlyGeneral(r.data), r.data);
+
+    r = await voice('POST', '/api/voice/availability', 'voice-test-key-demo-0000000000', { doctorId: voiceDoctor.id, date: new Date(Date.now() + 86400000).toISOString().slice(0, 10) });
+    check('a POST to availability reads doctorId and date from the body', r.status === 200 && typeof r.data.freeTimes === 'string', r.data);
+
+    r = await voice('GET', '/api/voice/doctors?department=general%20medicine', 'voice-test-key-demo-0000000000');
+    check('department matching ignores case and extra words', onlyGeneral(r.data), r.data);
+
+    r = await voice('GET', '/api/voice/doctors?department=ENT', 'voice-test-key-demo-0000000000');
+    check('an unknown department answers none instead of every doctor', /^No ent department/.test(r.data.doctors), r.data);
+
+    const istNow = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' });
+    r = await voice('GET', `/api/voice/availability?doctorId=${voiceDoctor.id}&date=${istNow.slice(0, 10)}`, 'voice-test-key-demo-0000000000');
+    check("today's free times never include a time that has passed", r.status === 200 && (r.data.freeTimes.startsWith('None') || r.data.freeTimes.split(', ').every((t: string) => t > istNow.slice(11, 16))), r.data);
+
+    r = await voice('GET', `/api/voice/availability?doctorId=doc_made_up_123&date=${istNow.slice(0, 10)}`, 'voice-test-key-demo-0000000000');
+    check('an invented doctor id comes back with the real doctor list', r.status === 200 && /Use only these real doctors: .*id=/.test(r.data.error), r.data);
 
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     r = await voice('GET', `/api/voice/availability?doctorId=${voiceDoctor.id}&date=${tomorrow}`, 'voice-test-key-demo-0000000000');
-    check('voice gets free times', r.status === 200 && r.data.freeTimes.length > 0, r.data);
-    const freeTime = r.data.freeTimes[0];
+    check('voice gets free times as one text line', r.status === 200 && /^\d\d:\d\d(, |$)/.test(r.data.freeTimes), r.data);
+    const freeTime = r.data.freeTimes.split(', ')[0];
 
     const booking = {
       phone: '+91 98765 43210', firstName: 'Voice', lastName: 'Caller', age: 32, gender: 'Male',
@@ -846,17 +891,46 @@ const run = async () => {
     });
     check('a repeat caller cannot overwrite the email on file', r.data.emailSentTo === 'vo***@example.com', r.data);
 
+    // Exactly what Sarvam sent on a real call: blank dateOfBirth, phone as a number.
+    const slot2 = (await voice('GET', `/api/voice/availability?doctorId=${voiceDoctor.id}&date=${tomorrow}`, 'voice-test-key-demo-0000000000')).data.freeTimes.split(', ').pop();
+    r = await voice('POST', '/api/voice/book', 'voice-test-key-demo-0000000000', {
+      ...booking, firstName: 'Sarvam', phone: 9835631769, dateOfBirth: '', email: 'Sarvam.Shape@Example.com', time: slot2
+    });
+    check('a booking with a blank dateOfBirth and a numeric phone still goes through', r.status === 201 && /APT/.test(r.data.appointmentId), r.data);
+
+    // The full demo flow: date of birth, blood group, allergies and city as spoken.
+    const slot3 = (await voice('GET', `/api/voice/availability?doctorId=${voiceDoctor.id}&date=${tomorrow}`, 'voice-test-key-demo-0000000000')).data.freeTimes.split(', ')[1];
+    r = await voice('POST', '/api/voice/book', 'voice-test-key-demo-0000000000', {
+      ...booking, firstName: 'Full', lastName: 'Details', phone: '9123456780', age: '', dateOfBirth: '1990-05-14',
+      bloodGroup: 'B positive', allergies: 'Penicillin aur dust', city: 'Ranchi', time: slot3
+    });
+    const full = await mongoose.connection.collection('patients').findOne({ tenantId: 'TDEMO001', phone: '9123456780' });
+    check('the bot can save date of birth, blood group, allergies and city', r.status === 201 &&
+      full?.bloodGroup === 'B+' && full?.allergies?.join('|') === 'Penicillin|dust' && full?.address?.city === 'Ranchi' &&
+      new Date(full?.dateOfBirth).toISOString().startsWith('1990-05-14'), { res: r.data, full });
+
     r = await voice('POST', '/api/voice/book', 'voice-test-key-demo-0000000000', booking);
-    check('the same slot cannot be booked twice', r.status === 409, r.data);
+    check('the same slot cannot be booked twice', r.status === 200 && /not free/.test(r.data.error), r.data);
 
     r = await voice('POST', '/api/voice/book', 'voice-test-key-demo-0000000000', { ...booking, age: undefined, time: '23:00' });
-    check('a booking without age or date of birth is rejected', r.status === 400, r.data);
+    check('a booking without age or date of birth is rejected', r.status === 200 && Boolean(r.data.error) && !r.data.appointmentId, r.data);
 
     r = await voice('GET', `/api/voice/availability?doctorId=${voiceDoctor.id}&date=${tomorrow}`, 'voice-test-key-other-000000000');
-    check("another hospital's voice key cannot reach this hospital's doctor", r.status === 404, r.data);
+    check("another hospital's voice key cannot reach this hospital's doctor", Boolean(r.data.error) && !r.data.error.includes(voiceDoctor.id) && !r.data.freeTimes, r.data);
 
     const voicePatients = await mongoose.connection.collection('patients').find({ tenantId: 'TDEMO001', phone: '9876543210' }).toArray();
     check('the caller is registered once, phone normalised', voicePatients.length === 1, voicePatients.length);
+
+    group('Call logs');
+
+    r = await call('GET', '/api/calls', { token: tokens.nurse });
+    check('a nurse cannot open call recordings', r.status === 403, r.data);
+    r = await call('GET', '/api/calls/recording?id=../../secret', { token: tokens.reception });
+    check('a call id that could rewrite the Sarvam path is rejected', r.status === 400, r.data);
+    r = await call('GET', '/api/calls', { token: admin });
+    check('a hospital without a Sarvam agent gets a clear not-set-up answer', r.status === 404 && /not set up/.test(r.data.error), r.data);
+    const voiceAppointment = await mongoose.connection.collection('appointments').findOne({ tenantId: 'TDEMO001', source: 'Voice' });
+    check('voice bookings are marked as such', Boolean(voiceAppointment), null);
 
     group('Tenant isolation');
 
@@ -886,6 +960,76 @@ const run = async () => {
 
     r = await call('GET', '/api/dashboard/stats', { token: other.data.token });
     check('dashboard figures do not leak across tenants', r.data.stats.totalPatients === 1, r.data?.stats?.totalPatients);
+
+    // The same e-mail and password at two hospitals: the user picks one.
+    await User.create({
+      firstName: 'Shared', lastName: 'Desk', email: 'reception@careease.health', phone: '9000000001',
+      password: 'Reception@123', department: 'Administration', roles: ['RECEPTIONIST'],
+      tenantId: 'TOTHER01', status: 'ACTIVE'
+    });
+    r = await call('POST', '/api/auth/login', { body: { email: 'reception@careease.health', password: 'Reception@123' } });
+    check('an account at two hospitals is asked to choose', r.status === 409 && r.data.code === 'CHOOSE_HOSPITAL' && r.data.hospitals?.length === 2 && !r.data.token, r.data);
+    r = await call('POST', '/api/auth/login', { body: { email: 'reception@careease.health', password: 'Reception@123', tenantId: 'TOTHER01' } });
+    check('choosing the hospital signs into that one', r.status === 200 && r.data.user?.tenantId === 'TOTHER01', r.data);
+    r = await call('POST', '/api/auth/login', { body: { email: 'reception@careease.health', password: 'wrong' } });
+    check('the hospital list is never shown without the right password', r.status === 401 && !r.data.hospitals, r.data);
+
+    group('Platform admin');
+
+    r = await call('POST', '/api/hospitals/register', { body: { name: 'Self signup' } });
+    check('hospitals can no longer register themselves', r.status === 404, r.status);
+
+    r = await call('POST', '/api/contact', { body: { hospitalName: 'Lotus Care', contactName: 'Dev Rao', email: 'dev@lotus.test', phone: '9800000001', beds: 40 } });
+    check('the website onboarding form is accepted', r.status === 200 && r.data.success, r.data);
+    r = await call('POST', '/api/contact', { body: { hospitalName: 'Lotus Care', contactName: 'Dev Rao', email: 'bad', phone: '1' } });
+    check('the onboarding form is validated', r.status === 400 && !!r.data.details?.email, r.data);
+
+    r = await call('POST', '/api/auth/login', { body: { email: 'superadmin@careease.health', password: 'Super@123' } });
+    check('the super admin signs in without a Hospital ID', r.status === 200 && r.data.user?.roles?.includes('SUPER_ADMIN'), r.data);
+    const sa = r.data.token;
+
+    r = await call('GET', '/api/platform/tenants', { token: sa });
+    check('the super admin sees every tenant', r.status === 200 && r.data.tenants.some((t: Json) => t.tenantId === TENANT && t.patientCount > 0), r.data);
+
+    r = await call('POST', '/api/platform/mail-check', { token: sa, body: { to: 'ops@careease.test' } });
+    check('the super admin can run an e-mail check', r.status === 200 && r.data.to === 'ops@careease.test', r.data);
+    r = await call('POST', '/api/platform/mail-check', { token: admin, body: {} });
+    check('only the super admin can run the e-mail check', r.status === 403, r.status);
+
+    r = await call('GET', '/api/patients', { token: sa });
+    check('the super admin cannot read hospital data', r.status === 403, r.status);
+
+    r = await call('GET', '/api/platform/tenants', { token: admin });
+    check('a hospital admin cannot open the platform admin', r.status === 403, r.status);
+
+    const newTenant = {
+      name: 'Sunrise Clinic', address: '1 MG Road', city: 'Pune', contactNumber: '9800000000',
+      licenseNumber: 'MH-TEST-0099', adminEmail: 'head@sunrise.test', adminFirstName: 'Rhea', adminLastName: 'Kapoor'
+    };
+    r = await call('POST', '/api/platform/tenants', { token: sa, body: { ...newTenant, adminEmail: 'not-an-email' } });
+    check('onboarding validates the form', r.status === 400 && !!r.data.details?.adminEmail, r.data);
+    r = await call('POST', '/api/platform/tenants', { token: sa, body: newTenant });
+    check('the super admin onboards a hospital', r.status === 201 && /^T[0-9A-F]{8}$/.test(r.data.tenant?.tenantId) && r.data.tenant.status === 'ACTIVE' && !!r.data.admin?.temporaryPassword, r.data);
+    const sunrise = r.data.tenant?.tenantId;
+    const sunrisePassword = r.data.admin?.temporaryPassword;
+    r = await call('POST', '/api/platform/tenants', { token: sa, body: { ...newTenant, adminEmail: 'x@sunrise.test' } });
+    check('a duplicate licence is refused', r.status === 409, r.data);
+
+    r = await call('POST', '/api/auth/login', { body: { email: 'head@sunrise.test', password: sunrisePassword } });
+    check('the new admin signs in with the temporary password', r.status === 200 && r.data.user?.tenantId === sunrise && r.data.user?.mustChangePassword === true, r.data);
+    const sunriseToken = r.data.token;
+    r = await call('GET', '/api/patients', { token: sunriseToken });
+    check('the new hospital starts empty', r.status === 200 && r.data.patients.length === 0, r.data);
+
+    r = await call('PATCH', `/api/platform/tenants/${sunrise}/status`, { token: sa, body: { status: 'SUSPENDED' } });
+    check('the super admin suspends a hospital', r.status === 200 && r.data.tenant?.status === 'SUSPENDED', r.data);
+    r = await call('GET', '/api/patients', { token: sunriseToken });
+    check('a suspended hospital is locked out at once', r.status === 403, r.status);
+    r = await call('POST', '/api/auth/login', { body: { email: 'head@sunrise.test', password: sunrisePassword } });
+    check('a suspended hospital cannot sign in', r.status === 403, r.data);
+    r = await call('PATCH', `/api/platform/tenants/${sunrise}/status`, { token: sa, body: { status: 'ACTIVE' } });
+    r = await call('GET', '/api/patients', { token: sunriseToken });
+    check('re-activating restores access', r.status === 200, r.status);
   } finally {
     console.log('\n  ' + '-'.repeat(50));
     console.log(`  ${passed} passed, ${failed} failed`);

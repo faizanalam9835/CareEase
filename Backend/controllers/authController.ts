@@ -10,7 +10,8 @@ import {
   PASSWORD_POLICY
 } from '../utils/generateToken';
 import { logActivity } from '../utils/activityLog';
-import { DEMO_ACCOUNTS, DEMO_TENANT_ID } from '../seed/demoAccounts';
+import { DEMO_ACCOUNTS, DEMO_TENANT_ID, DEMO_PLATFORM_ADMIN } from '../seed/demoAccounts';
+import { PLATFORM_TENANT_ID } from '../config/constants';
 
 const publicUser = (user: UserDoc, hospital?: { name?: string | null } | null) => ({
   id: user._id,
@@ -28,38 +29,62 @@ const publicUser = (user: UserDoc, hospital?: { name?: string | null } | null) =
   status: user.status,
   mustChangePassword: user.mustChangePassword,
   lastLoginAt: user.lastLoginAt,
-  hospitalName: hospital?.name,
+  hospitalName: hospital?.name ?? (user.tenantId === PLATFORM_TENANT_ID ? 'CareEase Platform' : undefined),
   createdAt: user.createdAt
 });
 
 /**
  * POST /api/auth/login
  *
- * Note this route is intentionally reachable without a tenant header: the
- * client has no way to prove a tenant before it holds a token. The hospital is
- * identified by the `tenantId` field in the body and verified against the user
- * record here.
+ * Only e-mail and password are needed: the hospital is found from the account.
+ * E-mails are unique per hospital, not globally, so when the same e-mail and
+ * password open accounts at more than one hospital the response lists them
+ * (409 CHOOSE_HOSPITAL) and the client repeats the call with that `tenantId`.
+ * The list is only revealed after the password has matched.
  */
 export const login = asyncHandler(async (req, res) => {
   const { email, password, tenantId } = req.body;
 
-  if (!email || !password || !tenantId) {
-    throw ApiError.badRequest('E-mail, password and Hospital ID are all required');
+  if (!email || !password) {
+    throw ApiError.badRequest('E-mail and password are both required');
   }
 
-  const normalisedTenant = String(tenantId).trim().toUpperCase();
-
   // `password` is `select: false` on the schema, so ask for it explicitly.
-  const user = await User.findOne({
+  const candidates = await User.find({
     email: String(email).toLowerCase().trim(),
-    tenantId: normalisedTenant
-  }).select('+password');
+    ...(tenantId && { tenantId: String(tenantId).trim().toUpperCase() })
+  })
+    .select('+password')
+    .limit(20);
+
+  const matches: UserDoc[] = [];
+  for (const candidate of candidates) {
+    // eslint-disable-next-line no-await-in-loop
+    if (await candidate.comparePassword(password)) matches.push(candidate);
+  }
 
   // One generic message for "no such user" and "wrong password" so the endpoint
   // cannot be used to enumerate which e-mail addresses exist.
-  if (!user || !(await user.comparePassword(password))) {
-    throw ApiError.unauthorized('Incorrect e-mail, password or Hospital ID');
+  if (!matches.length) {
+    throw ApiError.unauthorized('Incorrect e-mail or password');
   }
+
+  if (matches.length > 1) {
+    const hospitals = await Hospital.find({ tenantId: { $in: matches.map((m) => m.tenantId) } })
+      .select('name tenantId')
+      .lean();
+    return res.status(409).json({
+      success: false,
+      code: 'CHOOSE_HOSPITAL',
+      message: 'This account works at more than one hospital. Choose which one to open.',
+      hospitals: matches.map((m) => ({
+        tenantId: m.tenantId,
+        name: hospitals.find((h) => h.tenantId === m.tenantId)?.name || m.tenantId
+      }))
+    });
+  }
+
+  const user = matches[0];
 
   if (user.status !== 'ACTIVE') {
     throw ApiError.forbidden(
@@ -71,7 +96,11 @@ export const login = asyncHandler(async (req, res) => {
 
   const hospital = await Hospital.findOne({ tenantId: user.tenantId });
   if (hospital && !['ACTIVE', 'VERIFIED'].includes(hospital.status)) {
-    throw ApiError.forbidden('This hospital workspace is not active yet.');
+    throw ApiError.forbidden(
+      hospital.status === 'SUSPENDED'
+        ? 'This hospital workspace has been suspended. Please contact CareEase.'
+        : 'This hospital workspace is not active yet.'
+    );
   }
 
   user.lastLoginAt = new Date();
@@ -204,10 +233,19 @@ export const getDemoCredentials = asyncHandler(async (req, res) => {
     hint: existingEmails.size
       ? 'Pick an account to fill the form.'
       : 'Demo data has not been loaded yet. Run "npm run seed" in the Backend folder.',
-    accounts: DEMO_ACCOUNTS.map((account) => ({
-      ...account,
-      tenantId: DEMO_TENANT_ID,
-      available: existingEmails.has(account.email)
-    }))
+    accounts: [
+      ...DEMO_ACCOUNTS.map((account) => ({
+        ...account,
+        tenantId: DEMO_TENANT_ID,
+        available: existingEmails.has(account.email)
+      })),
+      {
+        ...DEMO_PLATFORM_ADMIN,
+        tenantId: PLATFORM_TENANT_ID,
+        available: Boolean(
+          await User.exists({ tenantId: PLATFORM_TENANT_ID, email: DEMO_PLATFORM_ADMIN.email })
+        )
+      }
+    ]
   });
 });

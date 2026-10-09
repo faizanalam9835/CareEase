@@ -21,14 +21,14 @@ const Layout = () => {
   }, [logout, navigate]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onToggleSidebar={() => setSidebarOpen((open) => !open)} onLogout={handleLogout} />
 
         {user?.mustChangePassword && (
-          <div className="flex flex-wrap items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 sm:px-6">
+          <div className="mx-3 mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200/70 bg-amber-50/80 px-4 py-2.5 text-sm text-amber-800 backdrop-blur sm:mx-4 lg:ml-0 lg:mr-6">
             <KeyRound className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>You are still using a temporary password.</span>
             <Link to="/app/profile" className="font-semibold underline underline-offset-2">
@@ -38,7 +38,7 @@ const Layout = () => {
         )}
 
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
+          <div className="mx-auto max-w-[1600px] px-3 py-5 sm:px-4 lg:py-6 lg:pl-0 lg:pr-6">
             <Outlet />
           </div>
         </main>

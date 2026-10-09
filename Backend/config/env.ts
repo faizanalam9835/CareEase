@@ -16,6 +16,8 @@ const config = {
   isProduction: process.env.NODE_ENV === 'production',
 
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5175',
+  // Where onboarding requests from the website go. Defaults to the sending mailbox.
+  contactEmail: process.env.CONTACT_EMAIL || process.env.EMAIL_USER || '',
   corsOrigins: (process.env.CORS_ORIGINS || '*')
     .split(',')
     .map((origin) => origin.trim())
@@ -36,6 +38,24 @@ const config = {
     .map((pair) => pair.split('=').map((part) => part.trim()))
     .filter(([tenant, key]) => tenant && key && key.length >= 24)
     .map(([tenant, key]) => ({ tenantId: tenant.toUpperCase(), key })),
+
+  // Call logs come from Sarvam's analytics API. Each hospital maps to its own agent:
+  // SARVAM_APPS="TDEMO001=<org_id>/<workspace_id>/<agent_id>".
+  // ponytail: one Sarvam key for every hospital; move the key into the mapping when a hospital brings its own Sarvam account.
+  sarvam: {
+    apiKey: process.env.SARVAM_API_KEY || '',
+    // Platform key (api.sarvam.ai) used to show Hindi and other Indian-language transcripts in English.
+    translateKey: process.env.SARVAM_TRANSLATE_KEY || '',
+    // Calls before this moment are never shown (e.g. test calls made while setting up). ISO date-time.
+    callsVisibleFrom: process.env.CALL_LOGS_FROM ? new Date(process.env.CALL_LOGS_FROM) : null,
+    apps: Object.fromEntries(
+      (process.env.SARVAM_APPS || '')
+        .split(',')
+        .map((pair) => pair.split('=').map((part) => part.trim()))
+        .filter(([tenant, app]) => tenant && app && app.split('/').length === 3)
+        .map(([tenant, app]) => [tenant.toUpperCase(), app])
+    ) as Record<string, string>
+  },
 
   email: {
     user: process.env.EMAIL_USER || '',

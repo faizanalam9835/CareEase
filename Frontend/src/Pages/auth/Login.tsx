@@ -14,27 +14,28 @@ import {
   BarChart3,
   Users,
   ArrowRight,
-  Check,
-  Copy,
   Info,
   Stethoscope,
   ClipboardList,
   UserCog,
-  ConciergeBell
+  ConciergeBell,
+  Globe
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services';
 import { Button, Input, Badge, Spinner } from '../../components/ui';
-import { HOME_PATH } from '../../lib/navigation';
-import type { DemoAccount, DemoCredentials, LoginCredentials, Role } from '../../types';
+import Logo from '../../components/shared/Logo';
+import { homePath } from '../../lib/navigation';
+import type { DemoAccount, DemoCredentials, HospitalChoice, LoginCredentials, Role } from '../../types';
 
 const ROLE_ICONS: Record<Role, LucideIcon> = {
   HOSPITAL_ADMIN: UserCog,
   DOCTOR: Stethoscope,
   NURSE: HeartPulse,
   RECEPTIONIST: ConciergeBell,
-  PHARMACIST: Pill
+  PHARMACIST: Pill,
+  SUPER_ADMIN: Globe
 };
 
 const HIGHLIGHTS = [
@@ -49,7 +50,8 @@ const Login = () => {
   const [submitting, setSubmitting] = useState(false);
   const [demo, setDemo] = useState<DemoCredentials | null>(null);
   const [demoLoading, setDemoLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
+  // Set when the account exists at several hospitals: the user picks one.
+  const [choices, setChoices] = useState<HospitalChoice[] | null>(null);
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -58,12 +60,11 @@ const Login = () => {
     register,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors }
-  } = useForm<LoginCredentials>({ defaultValues: { email: '', password: '', tenantId: '' } });
+  } = useForm<LoginCredentials>({ defaultValues: { email: '', password: '' } });
 
-  // The sign-in screen asks for a Hospital ID that a reviewer has no way of
-  // knowing, so the seeded demo accounts are listed here and fill the form on
-  // a single click.
+  // The seeded demo accounts are listed here and fill the form on a single click.
   useEffect(() => {
     authService
       .demoCredentials()
@@ -76,44 +77,36 @@ const Login = () => {
     if (!demo) return;
     setValue('email', account.email, { shouldValidate: true });
     setValue('password', account.password, { shouldValidate: true });
-    setValue('tenantId', demo.tenantId ?? '', { shouldValidate: true });
+    setChoices(null);
     toast.success(`Filled in the ${account.label} account`);
   };
 
-  const copyTenant = async () => {
-    if (!demo) return;
-    try {
-      await navigator.clipboard.writeText(demo.tenantId ?? '');
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Could not copy - please select the ID and copy it manually');
-    }
-  };
-
+  // No Hospital ID to type: the server finds the hospital from the account.
   const onSubmit = async (values: LoginCredentials) => {
     setSubmitting(true);
     const result = await login(values);
     setSubmitting(false);
 
     if (!result.success) {
+      if (result.hospitals?.length) {
+        setChoices(result.hospitals);
+        return;
+      }
       toast.error(result.error || 'Could not sign you in');
       return;
     }
 
     toast.success(`Welcome back, ${result.user.firstName}`);
-    navigate(HOME_PATH, { replace: true });
+    navigate(homePath(result.user.roles), { replace: true });
   };
 
   return (
-    <div className="flex min-h-screen flex-col lg:flex-row">
+    <div className="flex min-h-screen flex-col gap-3 p-3 lg:flex-row">
       {/* Form */}
-      <div className="flex flex-1 flex-col justify-center bg-white px-5 py-10 sm:px-10 lg:px-14 xl:px-20">
+      <div className="glass flex flex-1 flex-col justify-center rounded-3xl px-5 py-10 sm:px-10 lg:px-14 xl:px-20">
         <div className="mx-auto w-full max-w-md">
           <Link to="/" className="mb-8 inline-flex items-center gap-2.5">
-            <span className="rounded-xl bg-cyan-600 p-2 text-white">
-              <HeartPulse className="h-6 w-6" aria-hidden="true" />
-            </span>
+            <Logo className="h-12 w-12" />
             <span>
               <span className="block text-lg font-semibold leading-tight text-slate-900">
                 CareEase
@@ -124,7 +117,7 @@ const Login = () => {
             </span>
           </Link>
 
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Sign in</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Sign in</h1>
           <p className="mt-1.5 text-sm text-slate-500">
             Use the credentials your hospital administrator gave you.
           </p>
@@ -169,22 +162,27 @@ const Login = () => {
               {...register('password', { required: 'Enter your password' })}
             />
 
-            <Input
-              label="Hospital ID"
-              icon={Building2}
-              placeholder="TDEMO001"
-              hint="The tenant ID issued when your hospital was registered."
-              error={errors.tenantId}
-              required
-              className="uppercase-input"
-              {...register('tenantId', {
-                required: 'Enter your Hospital ID',
-                pattern: {
-                  value: /^T[A-Za-z0-9]{3,}$/,
-                  message: 'A Hospital ID starts with T, for example TDEMO001'
-                }
-              })}
-            />
+            {choices && (
+              <fieldset className="rounded-md border border-cyan-200 bg-cyan-50 p-3">
+                <legend className="px-1 text-sm font-medium text-slate-900">
+                  Your account works at more than one hospital. Open which one?
+                </legend>
+                <div className="mt-1 space-y-1.5">
+                  {choices.map((hospital) => (
+                    <Button
+                      key={hospital.tenantId}
+                      variant="outline"
+                      icon={Building2}
+                      className="w-full justify-start"
+                      loading={submitting}
+                      onClick={() => onSubmit({ ...getValues(), tenantId: hospital.tenantId })}
+                    >
+                      {hospital.name}
+                    </Button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
 
             <Button type="submit" size="lg" loading={submitting} className="w-full">
               {submitting ? 'Signing in' : 'Sign in'}
@@ -199,24 +197,12 @@ const Login = () => {
               Checking for demo accounts
             </div>
           ) : demo ? (
-            <section className="mt-7 rounded-xl border border-cyan-100 bg-cyan-50/60 p-4">
+            <section className="mt-7 rounded-2xl bg-cyan-50 p-4 ring-1 ring-inset ring-cyan-100">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-sm font-semibold text-cyan-900">
                   <Info className="h-4 w-4" aria-hidden="true" />
                   Demo accounts
                 </h2>
-                <button
-                  type="button"
-                  onClick={copyTenant}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 font-mono text-xs font-semibold text-cyan-800 ring-1 ring-cyan-200 transition-colors hover:bg-cyan-100"
-                >
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                  )}
-                  {demo.tenantId}
-                </button>
               </div>
 
               <p className="mt-1.5 text-xs leading-relaxed text-cyan-800/80">
@@ -235,7 +221,7 @@ const Login = () => {
                           type="button"
                           onClick={() => fillFromDemoAccount(account)}
                           disabled={!account.available}
-                          className="flex w-full items-center gap-3 rounded-lg border border-transparent bg-white px-3 py-2.5 text-left shadow-sm transition-all hover:border-cyan-300 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex w-full items-center gap-3 rounded-xl border border-white/80 bg-white/80 px-3 py-2.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <span className="rounded-lg bg-cyan-50 p-1.5 text-cyan-600">
                             <Icon className="h-4 w-4" aria-hidden="true" />
@@ -264,25 +250,17 @@ const Login = () => {
           <p className="mt-7 text-center text-sm text-slate-500">
             New hospital?{' '}
             <Link
-              to="/hospital-register"
+              to="/#contact"
               className="font-medium text-cyan-700 underline-offset-2 hover:underline"
             >
-              Register your hospital
+              Talk to the CareEase team
             </Link>
           </p>
         </div>
       </div>
 
       {/* Brand panel */}
-      <div className="relative hidden flex-1 flex-col justify-center overflow-hidden bg-gradient-to-br from-cyan-600 via-cyan-700 to-teal-800 px-14 lg:flex">
-        <div
-          className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-3xl"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-teal-400/20 blur-3xl"
-          aria-hidden="true"
-        />
+      <div className="relative hidden flex-1 flex-col justify-center overflow-hidden rounded-3xl bg-cyan-600 px-14 lg:flex">
 
         <div className="relative max-w-lg">
           <Badge tone="cyan" className="bg-white/15 text-white ring-white/25">

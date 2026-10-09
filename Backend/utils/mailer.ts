@@ -1,4 +1,5 @@
 import nodemailer, { type Transporter } from 'nodemailer';
+import { waitUntil } from '@vercel/functions';
 import config from '../config/env';
 
 export interface MailPayload {
@@ -63,11 +64,14 @@ const sendMail = async ({ to, subject, html }: MailPayload): Promise<MailResult>
   }
 };
 
-/** Fire-and-forget helper for mail that must not block the HTTP response. */
+/**
+ * Fire-and-forget helper for mail that must not block the HTTP response.
+ * On Vercel the function is frozen once the response is sent, which silently
+ * dropped these mails; `waitUntil` keeps it alive until delivery settles.
+ * Off Vercel it is a no-op and the long-running process finishes the send.
+ */
 const sendMailAsync = (payload: MailPayload): void => {
-  setImmediate(() => {
-    sendMail(payload).catch((error) => console.error('[mail] unexpected:', error.message));
-  });
+  waitUntil(sendMail(payload).catch((error) => console.error('[mail] unexpected:', error.message)));
 };
 
 export { sendMail, sendMailAsync };

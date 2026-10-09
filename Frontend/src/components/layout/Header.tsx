@@ -54,6 +54,7 @@ interface HeaderProps {
 
 const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
   const { user, roles } = useAuth();
+  const isPlatform = roles.includes('SUPER_ADMIN');
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
@@ -93,11 +94,12 @@ const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
   }, [query]);
 
   useEffect(() => {
+    if (isPlatform) return;
     dashboardService
       .alerts()
       .then((data) => setAlerts(data.alerts || []))
       .catch(() => setAlerts([]));
-  }, []);
+  }, [isPlatform]);
 
   const openResult = (result: SearchResult) => {
     setSearchOpen(false);
@@ -106,19 +108,19 @@ const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+    <header className="relative z-20 px-3 pt-3 sm:px-4 lg:pl-0 lg:pr-6">
+      <div className="glass flex h-16 items-center gap-3 rounded-2xl px-3 sm:px-4">
         <button
           type="button"
           onClick={onToggleSidebar}
           aria-label="Toggle menu"
-          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+          className="rounded-xl p-2 text-slate-500 hover:bg-white/70 lg:hidden"
         >
           <Menu className="h-5 w-5" aria-hidden="true" />
         </button>
 
         {/* Search */}
-        <div ref={searchRef} className="relative max-w-md flex-1">
+        <div ref={searchRef} className={`relative max-w-md flex-1 ${isPlatform ? 'invisible' : ''}`}>
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
             aria-hidden="true"
@@ -130,7 +132,7 @@ const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
             onFocus={() => results.length && setSearchOpen(true)}
             placeholder="Search patients, staff, invoices"
             aria-label="Search"
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-9 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-cyan-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-100"
+            className="w-full rounded-xl border border-white/80 bg-white/60 py-2.5 pl-9 pr-9 text-sm text-slate-900 placeholder-slate-400 shadow-[inset_0_1px_2px_rgb(15_23_42/0.06)] transition-all focus:border-cyan-300 focus:bg-white focus:outline-none focus:ring-4 focus:ring-cyan-100"
           />
           {searching && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -139,7 +141,7 @@ const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
           )}
 
           {searchOpen && query.trim().length >= 2 && (
-            <div className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+            <div className="glass-strong absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-2xl">
               {results.length === 0 ? (
                 <p className="px-4 py-6 text-center text-sm text-slate-500">
                   {searching ? 'Searching…' : `Nothing found for "${query}"`}
@@ -178,12 +180,12 @@ const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
 
         <div className="ml-auto flex items-center gap-1.5">
           {/* Alerts */}
-          <div ref={alertsRef} className="relative">
+          <div ref={alertsRef} className={`relative ${isPlatform ? 'hidden' : ''}`}>
             <button
               type="button"
               onClick={() => setAlertsOpen((open) => !open)}
               aria-label={`Alerts${alerts.length ? ` (${alerts.length})` : ''}`}
-              className="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+              className="relative rounded-xl p-2 text-slate-500 transition-colors hover:bg-white/70"
             >
               <Bell className="h-5 w-5" aria-hidden="true" />
               {alerts.length > 0 && (
@@ -194,7 +196,7 @@ const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
             </button>
 
             {alertsOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+              <div className="glass-strong absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl">
                 <div className="border-b border-slate-100 px-4 py-3">
                   <p className="text-sm font-semibold text-slate-900">Needs attention</p>
                 </div>
@@ -249,7 +251,7 @@ const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
-              className="flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-slate-100"
+              className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-white/70"
             >
               <Avatar name={`${user?.firstName || ''} ${user?.lastName || ''}`} size="sm" />
               <span className="hidden text-left md:block">
@@ -264,7 +266,7 @@ const Header = ({ onToggleSidebar, onLogout }: HeaderProps) => {
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+              <div className="glass-strong absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-2xl py-1">
                 <div className="border-b border-slate-100 px-4 py-3">
                   <p className="truncate text-sm font-medium text-slate-900">
                     {user?.firstName} {user?.lastName}

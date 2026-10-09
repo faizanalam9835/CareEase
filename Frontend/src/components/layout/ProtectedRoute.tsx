@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button, LoadingState } from '../ui';
-import { ROLE_LABELS } from '../../lib/navigation';
+import { ROLE_LABELS, homePath } from '../../lib/navigation';
 import type { Role } from '../../types';
 
 interface ProtectedRouteProps {
@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) => {
-  const { user, loading, hasRole, primaryRole } = useAuth();
+  const { user, loading, hasRole, primaryRole, roles } = useAuth();
 
   if (loading) return <LoadingState label="Checking your access" className="py-24" />;
   if (!user) return <Navigate to="/login" replace />;
@@ -32,9 +32,9 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
           </span>
           .
         </p>
-        <Link to="/app/dashboard" className="mt-6">
+        <Link to={homePath(roles)} className="mt-6">
           <Button variant="outline" icon={ArrowLeft}>
-            Back to dashboard
+            Back to home
           </Button>
         </Link>
       </div>

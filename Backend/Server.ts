@@ -24,6 +24,10 @@ import admissionRoutes from './routes/admissionRoutes';
 import vitalsRoutes from './routes/vitalsRoutes';
 import reportRoutes from './routes/reportRoutes';
 import voiceRoutes from './routes/voiceRoutes';
+import callRoutes from './routes/callRoutes';
+import platformRoutes from './routes/platformRoutes';
+import { requestOnboarding, onboardingRequestSchema } from './controllers/platformController';
+import { validate } from './middleware/validate';
 
 const app = express();
 
@@ -103,6 +107,9 @@ app.use('/api/admissions', admissionRoutes);
 app.use('/api/vitals', vitalsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/voice', voiceRoutes);
+app.use('/api/calls', callRoutes);
+app.use('/api/platform', platformRoutes);
+app.post('/api/contact', validate(onboardingRequestSchema), requestOnboarding);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

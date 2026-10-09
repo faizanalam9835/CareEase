@@ -1,0 +1,97 @@
+CAREEASE HOSPITAL - RECEPTION KNOWLEDGE BASE
+(Voice receptionist ke liye approved jaankari. Jo yahan nahi likha, wo bot nahi batayega.)
+
+==================================================
+1. HOSPITAL KI BASIC JAANKARI
+==================================================
+Hospital ka naam: CareEase Hospital
+Address: [BHAREIN: poora address, landmark ke saath]
+City: [BHAREIN]
+Reception phone number: [BHAREIN]
+Emergency phone number (hospital): [BHAREIN]
+National ambulance / emergency number: 108
+Email: [BHAREIN]
+Google Maps / landmark: [BHAREIN: jaise "XYZ Metro station ke saamne"]
+Parking: [BHAREIN: haan/nahi, free/paid]
+
+==================================================
+2. TIMINGS
+==================================================
+OPD (doctor consultation): Monday se Saturday, subah 9:00 se shaam 5:00
+Sunday: OPD band [BHAREIN: sahi karein agar alag hai]
+Emergency: 24 ghante, saato din khula
+Pharmacy: [BHAREIN: jaise 24 ghante / 8 AM - 10 PM]
+Lab / blood test collection: [BHAREIN: jaise subah 7:00 se dopahar 1:00]
+Patient visiting hours (bharti mareezon se milne ka samay):
+  Subah: [BHAREIN: jaise 11:00 - 12:00]
+  Shaam: [BHAREIN: jaise 5:00 - 7:00]
+  Ek samay par ek mareez ke saath [BHAREIN: jaise 2] se zyada visitors allowed nahi.
+  ICU mein visiting: [BHAREIN]
+
+==================================================
+3. DEPARTMENTS (kaun si takleef, kaunsa department)
+==================================================
+Ye sirf department chunne ki guidance hai, diagnosis nahi.
+- General Medicine (General): bukhar, sardi-khansi, kamzori, pet dard, BP/sugar checkup, samajh na aaye to yahi
+- Cardiology: dil ki bimari, BP ki purani bimari, dil ki dhadkan tez ya aniyamit hona
+- Orthopedics: haddi, jodon ka dard, kamar/ghutne ka dard, fracture ke baad follow-up
+- Pediatrics: 14 saal se kam umar ke bachche
+- Neurology: baar-baar sir dard, chakkar, mirgi (fits), nason ki takleef
+- Gynecology: mahilaon ke rog, pregnancy checkup
+- Dermatology: skin, baal, allergy ke daane
+- Oncology: cancer ka ilaaj aur follow-up
+- Emergency: turant khatre wali haalat (neeche section 5 dekhein)
+Note: Kis department mein abhi doctor available hain, ye hamesha get_doctors tool se check karein.
+
+==================================================
+4. APPOINTMENT KI JAANKARI
+==================================================
+- Appointment phone par is voice receptionist se ya reception par book ho sakta hai.
+- Har appointment 30 minute ka slot hota hai.
+- Consultation fee doctor ke hisaab se alag hai, get_doctors tool batata hai.
+- Fee hospital reception par appointment ke din jama hoti hai.
+  Payment ke tareeke: [BHAREIN: Cash / UPI / Card]
+- Appointment se 10-15 minute pehle pahunchein.
+- Saath laayein: koi ek photo ID (Aadhaar etc.), purani reports aur prescriptions, chal rahi dawaiyon ki list.
+- Appointment ka reference number sambhal kar rakhein, reception par yahi batana hai.
+- Cancel ya time badalna ho to reception number par call karein: [BHAREIN]
+- Health insurance / cashless: [BHAREIN: kaunsi companies, ya "reception se poochein"]
+
+==================================================
+5. EMERGENCY
+==================================================
+Agar caller in mein se kuch bataye to booking turant rok kar 108 call karne
+ya seedha hospital ki Emergency mein aane ko kahein:
+seene mein tez dard ya dabav, saans lene mein bahut takleef, behoshi,
+bahut zyada khoon behna, accident ya gambhir chot, chehra tedha hona ya
+haath-pair mein achanak kamzori (stroke), tez fits, zeher kha lena,
+bachche ka saans na lena ya neela padna.
+Emergency 24 ghante khuli hai. Emergency ke liye appointment ki zaroorat nahi.
+
+==================================================
+6. AKSAR POOCHE JAANE WALE SAWAAL (FAQ)
+==================================================
+Q: Kya bina appointment ke aa sakte hain?
+A: Haan, OPD mein walk-in bhi dekhte hain, lekin appointment walon ko pehle bulaya jaata hai. Emergency mein appointment ki zaroorat nahi.
+
+Q: Report kab milegi?
+A: Report ka samay test par depend karta hai. Exact jaankari ke liye lab ya reception se baat karein.
+
+Q: Kya ghar par sample collection hota hai?
+A: [BHAREIN: haan/nahi, charges]
+
+Q: Kya ambulance service hai?
+A: [BHAREIN: hospital ambulance ka number] Emergency mein 108 bhi call kar sakte hain.
+
+Q: Bill, report, ya admission ki jaankari chahiye.
+A: Ye jaankari phone par nahi di jaati. Reception team aapko call karegi.
+
+Q: Doctor se phone par baat ho sakti hai?
+A: Doctor phone par salah nahi dete. Appointment book karke mil sakte hain.
+
+==================================================
+7. BOT KYA NAHI BATAYEGA
+==================================================
+- Kisi mareez ki jaankari (admission, report, bill, appointment) kisi doosre ko.
+- Dawai, dose, ilaaj ya diagnosis.
+- Wo jaankari jo is document mein ya tools mein nahi hai. Aise mein kahein: "Reception team aapko call karke bata degi."

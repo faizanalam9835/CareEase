@@ -2,11 +2,12 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { authService } from '../services';
 import { session, setUnauthorizedHandler, asApiError } from '../services/api';
-import type { AuthUser, Department, LoginCredentials, Role } from '../types';
+import type { AuthUser, Department, HospitalChoice, LoginCredentials, Role } from '../types';
 
 export type LoginResult =
   | { success: true; user: AuthUser }
-  | { success: false; error: string };
+  /** `hospitals` is set when the account exists at several hospitals and one must be chosen. */
+  | { success: false; error: string; hospitals?: HospitalChoice[] };
 
 export interface AuthContextValue {
   user: AuthUser | null;
@@ -83,15 +84,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = useCallback(async (credentials: LoginCredentials): Promise<LoginResult> => {
     try {
-      const response = await authService.login({
-        ...credentials,
-        tenantId: credentials.tenantId?.trim().toUpperCase()
-      });
+      const response = await authService.login(credentials);
       session.save(response);
       setUser(response.user);
       return { success: true, user: response.user };
     } catch (error) {
-      return { success: false, error: asApiError(error).message };
+      const failure = asApiError(error);
+      const { hospitals } = (failure.payload || {}) as { hospitals?: HospitalChoice[] };
+      return { success: false, error: failure.message, hospitals };
     }
   }, []);
 

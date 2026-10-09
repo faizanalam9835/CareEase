@@ -16,9 +16,10 @@ import type {
   UserListParams,
   Department,
   Hospital,
-  HospitalRegisterInput,
-  HospitalRegisterResponse,
-  HospitalVerifyResponse,
+  Tenant,
+  CreateTenantInput,
+  CreateTenantResponse,
+  HospitalStatus,
   HospitalUpdateInput,
   Patient,
   PatientInput,
@@ -75,7 +76,10 @@ import type {
   DashboardAlert,
   SystemService,
   Meta,
-  SearchResult
+  SearchResult,
+  CallLog,
+  CallMessage,
+  PageMeta
 } from '../types';
 
 /**
@@ -105,15 +109,35 @@ export const authService = {
   demoCredentials: () => unwrap(api.get<ApiResponse<DemoCredentials>>('/auth/demo-credentials'))
 };
 
+/** The website's onboarding request form (public). */
+export interface OnboardingRequest {
+  hospitalName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  city?: string;
+  beds?: string;
+  message?: string;
+  /** Honeypot, left empty by people. */
+  company?: string;
+}
+
+export const contactService = {
+  requestOnboarding: (data: OnboardingRequest) => unwrap(api.post<Ack>('/contact', data))
+};
+
+/** The platform admin (SUPER_ADMIN only). */
+export const platformService = {
+  tenants: () => unwrap(api.get<ApiResponse<{ tenants: Tenant[] }>>('/platform/tenants')),
+  createTenant: (data: CreateTenantInput) =>
+    unwrap(api.post<ApiResponse<CreateTenantResponse>>('/platform/tenants', data)),
+  setStatus: (tenantId: string, status: Extract<HospitalStatus, 'ACTIVE' | 'SUSPENDED'>) =>
+    unwrap(api.patch<ApiResponse<{ tenant: Tenant }>>(`/platform/tenants/${tenantId}/status`, { status })),
+  mailCheck: (to?: string) =>
+    unwrap(api.post<ApiResponse<{ to: string; delivered: boolean }>>('/platform/mail-check', to ? { to } : {}))
+};
+
 export const hospitalService = {
-  register: (data: HospitalRegisterInput) =>
-    unwrap(api.post<ApiResponse<HospitalRegisterResponse>>('/hospitals/register', data)),
-  verify: (token: string) =>
-    unwrap(api.get<ApiResponse<HospitalVerifyResponse>>(`/hospitals/verify/${token}`)),
-  checkLicense: (licenseNumber: string) =>
-    unwrap(
-      api.get<ApiResponse<{ available: boolean }>>(`/hospitals/check-license/${licenseNumber}`)
-    ),
   getMine: () =>
     unwrap(
       api.get<
@@ -419,4 +443,16 @@ export const metaService = {
         params: { q }
       })
     )
+};
+
+export const callService = {
+  list: (params: { from?: string; to?: string; page?: number }) =>
+    unwrap(api.get<ApiResponse<{ calls: CallLog[]; meta: PageMeta }>>('/calls', { params })),
+  forAppointment: (appointmentId: Id) =>
+    unwrap(api.get<ApiResponse<{ call: CallLog | null }>>(`/calls/for-appointment/${appointmentId}`)),
+  transcript: (id: string) =>
+    unwrap(api.get<ApiResponse<{ messages: CallMessage[] }>>('/calls/transcript', { params: { id } })),
+  /** The WAV as a Blob: an <audio> tag cannot send our Authorization header itself. */
+  recording: (id: string) =>
+    unwrap(api.get<Blob>('/calls/recording', { params: { id }, responseType: 'blob', timeout: 120000 }))
 };

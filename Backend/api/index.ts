@@ -19,6 +19,7 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import mongoose from 'mongoose';
 import app from '../Server';
 import config from '../config/env';
+import { ensureDemoPlatformAdmin } from '../seed/demoAccounts';
 
 interface MongooseCache {
   connection: typeof mongoose | null;
@@ -51,8 +52,13 @@ const connect = async (): Promise<typeof mongoose> => {
         maxPoolSize: 5,
         minPoolSize: 0
       })
-      .then((instance) => {
+      .then(async (instance) => {
         console.log('[db] serverless connection established');
+        if (config.demoMode) {
+          await ensureDemoPlatformAdmin().catch((error: Error) =>
+            console.error('[db] demo platform admin:', error.message)
+          );
+        }
         return instance;
       })
       .catch((error) => {

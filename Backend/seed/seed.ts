@@ -28,7 +28,7 @@ import Admission from '../models/Admission';
 import Vitals from '../models/Vitals';
 import Counter from '../models/Counter';
 
-import { DEMO_TENANT_ID, DEMO_ACCOUNTS } from './demoAccounts';
+import { DEMO_TENANT_ID, DEMO_ACCOUNTS, DEMO_PLATFORM_ADMIN, ensureDemoPlatformAdmin } from './demoAccounts';
 
 const TENANT = DEMO_TENANT_ID;
 
@@ -851,9 +851,9 @@ const printCredentials = () => {
   console.log('');
   console.log('  Sign in at the login page with any of these:');
   console.log('  ---------------------------------------------------------------');
-  console.log(`  Hospital ID (all accounts): ${TENANT}`);
+  console.log('  No Hospital ID needed: the account decides the hospital.');
   console.log('');
-  for (const account of DEMO_ACCOUNTS) {
+  for (const account of [...DEMO_ACCOUNTS, DEMO_PLATFORM_ADMIN]) {
     console.log(`  ${account.role.padEnd(16)} ${account.email.padEnd(30)} ${account.password}`);
   }
   console.log('  ---------------------------------------------------------------');
@@ -886,6 +886,7 @@ const run = async () => {
   await seedAdmissions(patients, doctors, staff, wards, beds);
   await seedVitals(patients, staff);
   await seedActivity(staff);
+  await ensureDemoPlatformAdmin();
 
   printCredentials();
 

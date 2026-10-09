@@ -1,8 +1,9 @@
 import type { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config/env';
-import type { Role } from '../config/constants';
+import { PLATFORM_ROLE, type Role } from '../config/constants';
 import User from '../models/User';
+import Hospital from '../models/Hospital';
 import { ApiError, asyncHandler } from '../utils/apiError';
 import type { TokenPayload } from '../utils/generateToken';
 
@@ -29,6 +30,16 @@ const authenticateToken = asyncHandler(async (req, _res, next) => {
   }
   if (user.status !== 'ACTIVE') {
     throw ApiError.forbidden('This account is not active. Please contact your administrator.');
+  }
+
+  // The platform team only manages tenants; it never sees inside a hospital.
+  const isPlatform = user.roles.includes(PLATFORM_ROLE);
+  if (isPlatform && !/^\/api\/(platform|auth)([/?]|$)/.test(req.originalUrl)) {
+    throw ApiError.forbidden('Platform accounts can only use the platform admin');
+  }
+  // Suspending a hospital signs its staff out straight away, not when tokens expire.
+  if (!isPlatform && (await Hospital.exists({ tenantId: user.tenantId, status: { $in: ['SUSPENDED', 'INACTIVE'] } }))) {
+    throw ApiError.forbidden('This hospital workspace has been suspended. Please contact CareEase.');
   }
 
   req.userDoc = user;

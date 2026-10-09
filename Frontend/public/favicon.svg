@@ -1,5 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#0891b2"/>
-  <path d="M16 25s-7-4.5-7-9.5A4.5 4.5 0 0 1 16 12a4.5 4.5 0 0 1 7 3.5C23 20.5 16 25 16 25z" fill="#fff"/>
-  <path d="M14.5 17h3M16 15.5v3" stroke="#0891b2" stroke-width="1.6" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CareEase">
+  <title>CareEase</title>
+  <!-- White tile so the mark reads on any background, including browser tabs. -->
+  <rect x="1" y="1" width="62" height="62" rx="8" fill="#ffffff" stroke="#dee9fc" stroke-width="2"/>
+  <!-- A forward-leaning CE with softly curved strokes. -->
+  <g transform="translate(7 0) skewX(-12)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M31 21.5 A12.5 12.5 0 1 0 31 42.5" stroke="#1d66ed" stroke-width="6.5"/>
+    <path d="M49 20 Q42 18.5 37 20 Q35 32 37 44 Q42 45.5 49 44" stroke="#0e45aa" stroke-width="5.5"/>
+    <path d="M37 32 Q41.5 30.8 46 32" stroke="#0e45aa" stroke-width="5.5"/>
+  </g>
 </svg>

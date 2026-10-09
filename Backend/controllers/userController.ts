@@ -79,7 +79,6 @@ export const createUser = asyncHandler(async (req, res) => {
     department: user.department,
     roles: user.roles,
     hospitalName: hospital?.name || 'CareEase Hospital',
-    tenantId: user.tenantId,
     temporaryPassword
   });
   sendMailAsync({ to: user.professionalEmail || user.email, ...mail });
@@ -245,8 +244,8 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
 
   const mail = templates.passwordReset({
     firstName: user.firstName,
-    temporaryPassword,
-    tenantId: user.tenantId
+    email: user.email,
+    temporaryPassword
   });
   sendMailAsync({ to: user.professionalEmail || user.email, ...mail });
 

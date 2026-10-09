@@ -9,7 +9,9 @@ import {
   Building2,
   UserCog,
   BedDouble,
-  FileBarChart
+  FileBarChart,
+  PhoneCall,
+  Globe
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Role } from '../types';
@@ -30,6 +32,13 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   {
+    name: 'Platform',
+    path: '/app/platform',
+    icon: Globe,
+    roles: ['SUPER_ADMIN'],
+    description: 'Onboard and manage hospitals'
+  },
+  {
     name: 'Dashboard',
     path: '/app/dashboard',
     icon: LayoutDashboard,
@@ -49,6 +58,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: CalendarDays,
     roles: ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST'],
     description: 'Schedule and bookings'
+  },
+  {
+    name: 'Call Logs',
+    path: '/app/calls',
+    icon: PhoneCall,
+    roles: ['HOSPITAL_ADMIN', 'RECEPTIONIST'],
+    description: 'Voice receptionist recordings and transcripts'
   },
   {
     name: 'Wards',
@@ -103,7 +119,7 @@ export const NAV_ITEMS: NavItem[] = [
     name: 'My account',
     path: '/app/profile',
     icon: UserCog,
-    roles: ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST'],
+    roles: ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST', 'PHARMACIST', 'SUPER_ADMIN'],
     description: 'Details and password',
     hideFromQuickActions: true
   }
@@ -117,8 +133,10 @@ export const ROLE_LABELS: Record<Role, string> = {
   DOCTOR: 'Doctor',
   NURSE: 'Nurse',
   PHARMACIST: 'Pharmacist',
-  RECEPTIONIST: 'Receptionist'
+  RECEPTIONIST: 'Receptionist',
+  SUPER_ADMIN: 'Super admin'
 };
 
 /** Where each role lands after signing in. */
-export const HOME_PATH = '/app/dashboard';
+export const homePath = (roles: readonly Role[] = []) =>
+  roles.includes('SUPER_ADMIN') ? '/app/platform' : '/app/dashboard';

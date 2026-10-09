@@ -145,7 +145,8 @@ export const ROLE_TONE: Record<Role, Tone> = {
   DOCTOR: 'cyan',
   NURSE: 'green',
   PHARMACIST: 'amber',
-  RECEPTIONIST: 'blue'
+  RECEPTIONIST: 'blue',
+  SUPER_ADMIN: 'red'
 };
 
 export const STOCK_TONE: Record<MedicineStatus, Tone> = {
@@ -153,3 +154,7 @@ export const STOCK_TONE: Record<MedicineStatus, Tone> = {
   Out_of_Stock: 'red',
   Discontinued: 'slate'
 };
+
+/** 157 -> "2m 37s" */
+export const formatDuration = (seconds: number) =>
+  `${Math.floor(seconds / 60)}m ${String(Math.round(seconds % 60)).padStart(2, '0')}s`;

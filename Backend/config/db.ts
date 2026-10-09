@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import config from './env';
+import { ensureDemoPlatformAdmin } from '../seed/demoAccounts';
 
 mongoose.set('strictQuery', true);
 
@@ -13,8 +14,11 @@ const connectDB = async (uri: string = config.mongoUri): Promise<typeof mongoose
       serverSelectionTimeoutMS: 15000,
       maxPoolSize: 20
     })
-    .then((conn) => {
+    .then(async (conn) => {
       console.log(`[db] connected to ${conn.connection.host}/${conn.connection.name}`);
+      if (config.demoMode) {
+        await ensureDemoPlatformAdmin().catch((error: Error) => console.error('[db] demo platform admin:', error.message));
+      }
       return conn;
     })
     .catch((error) => {

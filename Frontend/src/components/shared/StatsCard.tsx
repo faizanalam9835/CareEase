@@ -5,15 +5,6 @@ import type { LucideIcon } from 'lucide-react';
 
 export type StatsCardTone = 'cyan' | 'blue' | 'green' | 'amber' | 'purple' | 'rose' | 'slate';
 
-const TONES: Record<StatsCardTone, string> = {
-  cyan: 'bg-cyan-50 text-cyan-600',
-  blue: 'bg-blue-50 text-blue-600',
-  green: 'bg-emerald-50 text-emerald-600',
-  amber: 'bg-amber-50 text-amber-600',
-  purple: 'bg-purple-50 text-purple-600',
-  rose: 'bg-rose-50 text-rose-600',
-  slate: 'bg-slate-100 text-slate-600'
-};
 
 export interface StatsCardProps {
   icon: LucideIcon;
@@ -34,7 +25,6 @@ const StatsCard = memo(function StatsCard({
   change,
   changeLabel = 'vs last month',
   hint,
-  tone = 'cyan'
 }: StatsCardProps) {
   const hasChange = typeof change === 'number' && Number.isFinite(change);
   const TrendIcon = !hasChange || change === 0 ? Minus : change > 0 ? TrendingUp : TrendingDown;
@@ -46,19 +36,21 @@ const StatsCard = memo(function StatsCard({
         : 'text-red-600';
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex items-start justify-between gap-3">
+    <div className="glass relative overflow-hidden rounded-2xl p-5">
+      <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
         </div>
-        <span className={`shrink-0 rounded-lg p-2.5 ${TONES[tone] || TONES.cyan}`}>
+        <span
+          className="shrink-0 rounded-md bg-cyan-50 p-3 text-cyan-600"
+        >
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>
       </div>
 
       {(hasChange || hint) && (
-        <div className="mt-3 flex items-center gap-1.5 text-xs">
+        <div className="relative mt-3 flex items-center gap-1.5 text-xs">
           {hasChange && (
             <>
               <TrendIcon className={`h-3.5 w-3.5 ${trendTone}`} aria-hidden="true" />

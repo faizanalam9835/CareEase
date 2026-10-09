@@ -9,7 +9,7 @@
 /* ------------------------------ enumerations ------------------------------ */
 // Backend/config/constants.ts
 
-export type Role = 'HOSPITAL_ADMIN' | 'DOCTOR' | 'NURSE' | 'PHARMACIST' | 'RECEPTIONIST';
+export type Role = 'HOSPITAL_ADMIN' | 'DOCTOR' | 'NURSE' | 'PHARMACIST' | 'RECEPTIONIST' | 'SUPER_ADMIN';
 
 export type Department =
   | 'Cardiology'
@@ -213,7 +213,14 @@ export interface AuthUser {
 export interface LoginCredentials {
   email: string;
   password: string;
+  /** Only sent when the same account exists at several hospitals and the user picked one. */
+  tenantId?: string;
+}
+
+/** 409 CHOOSE_HOSPITAL body from /auth/login. */
+export interface HospitalChoice {
   tenantId: string;
+  name: string;
 }
 
 export interface LoginResponse {
@@ -300,7 +307,7 @@ export interface Hospital extends Timestamps {
   verifiedAt?: ISODate;
 }
 
-export interface HospitalRegisterInput {
+export interface TenantInput {
   name: string;
   address: string;
   city?: string;
@@ -313,20 +320,24 @@ export interface HospitalRegisterInput {
 }
 
 export type HospitalUpdateInput = Partial<
-  Pick<HospitalRegisterInput, 'name' | 'address' | 'city' | 'state' | 'contactNumber' | 'website' | 'bedCapacity'>
+  Pick<TenantInput, 'name' | 'address' | 'city' | 'state' | 'contactNumber' | 'website' | 'bedCapacity'>
 >;
 
-export interface HospitalRegisterResponse {
-  tenantId: string;
-  hospitalId: Id;
-  status: HospitalStatus;
-  verificationToken?: string;
-  verificationLink?: string;
+export interface Tenant extends Hospital {
+  staffCount: number;
+  patientCount: number;
+  appointmentCount: number;
 }
 
-export interface HospitalVerifyResponse {
-  hospital: { id: Id; name: string; tenantId: string; status: HospitalStatus };
-  adminUser: { id: Id; email: string; roles: Role[]; temporaryPassword?: string };
+export interface CreateTenantInput extends TenantInput {
+  adminFirstName?: string;
+  adminLastName?: string;
+}
+
+export interface CreateTenantResponse {
+  tenant: Hospital;
+  admin: { id: Id; email: string; temporaryPassword: string };
+  emailSent: boolean;
 }
 
 /* -------------------------------- patients ------------------------------- */
@@ -435,6 +446,7 @@ export interface Appointment extends Timestamps {
   amount?: number;
   doctorNotes?: string;
   cancellationReason?: string;
+  source?: 'Staff' | 'Voice';
   tenantId: string;
 }
 
@@ -1151,4 +1163,26 @@ export interface Report {
     completionRate: number;
   }[];
   topMedicines: { medicine: string; prescribed: number; dispensed: number; times: number }[];
+}
+
+/* -------------------------------- call logs ------------------------------- */
+
+export interface CallLog {
+  id: string;
+  startedAt: ISODate;
+  endedAt: ISODate;
+  durationSeconds: number;
+  language: string;
+  messages: number;
+  caller: string | null;
+  endedBy: string | null;
+  summary: string | null;
+  appointments?: { _id: Id; appointmentId: string }[];
+}
+
+export interface CallMessage {
+  role: 'agent' | 'caller';
+  text: string;
+  /** The words as spoken, when `text` is an English translation. */
+  original?: string;
 }

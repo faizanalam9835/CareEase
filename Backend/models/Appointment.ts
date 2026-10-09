@@ -31,6 +31,9 @@ const appointmentSchema = new mongoose.Schema(
     doctorNotes: String,
     cancellationReason: String,
 
+    // Voice bookings are matched to their Sarvam call recording by time.
+    source: { type: String, enum: ['Staff', 'Voice'], default: 'Staff' },
+
     tenantId: { type: String, required: true, index: true }
   },
   { timestamps: true }

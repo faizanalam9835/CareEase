@@ -24,9 +24,9 @@ type Printable = string | number | null | undefined;
 const shell = (title: string, bodyHtml: string): string => `
 <div style="font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;padding:32px">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0">
-    <div style="background:linear-gradient(135deg,#0891b2,#0e7490);padding:24px 28px">
+    <div style="background:#1d66ed;padding:24px 28px">
       <h1 style="margin:0;color:#ffffff;font-size:20px;letter-spacing:-0.2px">CareEase HMS</h1>
-      <p style="margin:4px 0 0;color:#cffafe;font-size:13px">${title}</p>
+      <p style="margin:4px 0 0;color:#dee9fc;font-size:13px">${title}</p>
     </div>
     <div style="padding:28px;color:#0f172a;font-size:14px;line-height:1.7">
       ${bodyHtml}
@@ -37,36 +37,18 @@ const shell = (title: string, bodyHtml: string): string => `
   </div>
 </div>`;
 
+/** Names, reasons and other typed-in values go into HTML, so they are escaped. */
+const esc = (value: Printable): string =>
+  String(value ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
 const row = (label: string, value: Printable): string =>
-  `<tr><td style="padding:6px 12px 6px 0;color:#64748b">${label}</td><td style="padding:6px 0;font-weight:600">${value}</td></tr>`;
+  `<tr><td style="padding:6px 12px 6px 0;color:#64748b">${label}</td><td style="padding:6px 0;font-weight:600">${esc(value)}</td></tr>`;
 
 const table = (rows: string[]): string =>
   `<table style="width:100%;border-collapse:collapse;margin:16px 0">${rows.join('')}</table>`;
 
 const button = (href: string, label: string): string =>
-  `<a href="${href}" style="display:inline-block;background:#0891b2;color:#ffffff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:600">${label}</a>`;
-
-const hospitalVerification = ({
-  hospitalName,
-  tenantId,
-  verificationLink,
-  token
-}: {
-  hospitalName: string;
-  tenantId: string;
-  verificationLink: string;
-  token: string;
-}): MailContent => ({
-  subject: 'Verify your hospital registration - CareEase HMS',
-  html: shell(
-    'Hospital registration',
-    `<p>Welcome, <strong>${hospitalName}</strong>.</p>
-     <p>Your workspace is ready. Confirm your e-mail address to activate it and create your administrator account.</p>
-     <p style="margin:24px 0">${button(verificationLink, 'Verify and activate')}</p>
-     ${table([row('Hospital ID', tenantId), row('Verification token', token)])}
-     <p style="color:#64748b">Keep your Hospital ID safe - every member of your team needs it to sign in. This link expires in 24 hours.</p>`
-  )
-});
+  `<a href="${href}" style="display:inline-block;background:#1d66ed;color:#ffffff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">${label}</a>`;
 
 const hospitalActivated = ({
   hospitalName,
@@ -82,10 +64,10 @@ const hospitalActivated = ({
   subject: 'Your CareEase workspace is active',
   html: shell(
     'Workspace activated',
-    `<p><strong>${hospitalName}</strong> is now active on CareEase.</p>
-     <p>Sign in with the administrator account below and change the password right away.</p>
+    `<p><strong>${esc(hospitalName)}</strong> is now active on CareEase.</p>
+     <p>Sign in with just your e-mail and the temporary password below; you will be asked to choose your own password.</p>
      ${table([
-       row('Hospital ID', tenantId),
+       row('Tenant ID (for support)', tenantId),
        row('E-mail', adminEmail),
        row('Temporary password', temporaryPassword)
      ])}
@@ -100,7 +82,6 @@ const staffWelcome = ({
   department,
   roles,
   hospitalName,
-  tenantId,
   temporaryPassword
 }: {
   firstName: string;
@@ -109,16 +90,15 @@ const staffWelcome = ({
   department: string;
   roles: string[] | string;
   hospitalName: string;
-  tenantId: string;
   temporaryPassword: string;
 }): MailContent => ({
   subject: `Your ${hospitalName} account is ready`,
   html: shell(
     'Staff account created',
-    `<p>Hello ${firstName} ${lastName},</p>
-     <p>An account has been created for you at <strong>${hospitalName}</strong>.</p>
+    `<p>Hello ${esc(firstName)} ${esc(lastName)},</p>
+     <p>An account has been created for you at <strong>${esc(hospitalName)}</strong>. Sign in with your e-mail and the temporary password below.</p>
      ${table([
-       row('Hospital ID', tenantId),
+       row('Hospital', hospitalName),
        row('E-mail', email),
        row('Temporary password', temporaryPassword),
        row('Department', department),
@@ -133,7 +113,7 @@ const appointmentForPatient = ({ appointment, patient, doctor }: AppointmentMail
   subject: `Appointment confirmed - ${new Date(appointment.appointmentDate).toDateString()}`,
   html: shell(
     'Appointment confirmation',
-    `<p>Hello ${patient.firstName},</p>
+    `<p>Hello ${esc(patient.firstName)},</p>
      <p>Your appointment has been booked.</p>
      ${table([
        row('Reference', appointment.appointmentId),
@@ -151,7 +131,7 @@ const appointmentForDoctor = ({ appointment, patient, doctor }: AppointmentMailD
   subject: `New appointment - ${patient.firstName} ${patient.lastName}`,
   html: shell(
     'New appointment',
-    `<p>Dr. ${doctor.firstName},</p>
+    `<p>Dr. ${esc(doctor.firstName)},</p>
      <p>A new appointment has been added to your schedule.</p>
      ${table([
        row('Reference', appointment.appointmentId),
@@ -165,25 +145,60 @@ const appointmentForDoctor = ({ appointment, patient, doctor }: AppointmentMailD
 
 const passwordReset = ({
   firstName,
-  temporaryPassword,
-  tenantId
+  email,
+  temporaryPassword
 }: {
   firstName: string;
+  email: string;
   temporaryPassword: string;
-  tenantId: string;
 }): MailContent => ({
   subject: 'Your CareEase password has been reset',
   html: shell(
     'Password reset',
-    `<p>Hello ${firstName},</p>
+    `<p>Hello ${esc(firstName)},</p>
      <p>An administrator reset your password. Use the temporary password below and change it after signing in.</p>
-     ${table([row('Hospital ID', tenantId), row('Temporary password', temporaryPassword)])}
+     ${table([row('E-mail', email), row('Temporary password', temporaryPassword)])}
      <p style="margin:24px 0">${button(`${config.clientUrl}/login`, 'Sign in')}</p>`
   )
 });
 
+/** A hospital asking to be onboarded, from the landing page. Goes to the CareEase team. */
+const onboardingRequest = (lead: {
+  hospitalName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  city?: string;
+  beds?: number;
+  message?: string;
+}): MailContent => ({
+  subject: `Onboarding request: ${lead.hospitalName}`,
+  html: shell(
+    'New onboarding request',
+    `<p>A hospital asked to join CareEase from the website.</p>
+     ${table([
+       row('Hospital', lead.hospitalName),
+       row('Contact', lead.contactName),
+       row('E-mail', lead.email),
+       row('Phone', lead.phone),
+       row('City', lead.city || '-'),
+       row('Beds', lead.beds ?? '-'),
+       row('Message', lead.message || '-')
+     ])}
+     <p>Onboard them from the Platform page once you have spoken to them.</p>
+     <p style="margin:24px 0">${button(`${config.clientUrl}/app/platform`, 'Open the platform admin')}</p>`
+  )
+});
+
+/** Sent from the platform admin to prove the mail account works. */
+const mailCheck = (): MailContent => ({
+  subject: 'CareEase e-mail check',
+  html: shell('E-mail check', `<p>If you can read this, CareEase can send e-mail. Sent ${new Date().toUTCString()}.</p>`)
+});
+
 export {
-  hospitalVerification,
+  onboardingRequest,
+  mailCheck,
   hospitalActivated,
   staffWelcome,
   appointmentForPatient,

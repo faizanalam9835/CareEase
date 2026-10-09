@@ -1,6 +1,6 @@
 import mongoose, { type HydratedDocument, type InferSchemaType, type Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { ROLES, DEPARTMENTS } from '../config/constants';
+import { ROLES, PLATFORM_ROLE, DEPARTMENTS } from '../config/constants';
 
 const userSchema = new mongoose.Schema(
   {
@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
     availableTo: { type: String, default: '17:00' },
 
     roles: {
-      type: [{ type: String, enum: ROLES }],
+      type: [{ type: String, enum: [...ROLES, PLATFORM_ROLE] }],
       required: true,
       validate: {
         validator: (value: unknown) => Array.isArray(value) && value.length > 0,

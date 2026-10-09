@@ -6,7 +6,8 @@
  * the two can never drift apart.
  */
 
-import type { Department, Role } from '../config/constants';
+import User from '../models/User';
+import { PLATFORM_TENANT_ID, type Department, type Role } from '../config/constants';
 
 export interface DemoAccount {
   role: Role;
@@ -62,4 +63,38 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
   }
 ];
 
-export { DEMO_TENANT_ID, DEMO_ACCOUNTS };
+/** The CareEase platform admin. Belongs to no hospital; it onboards them. */
+const DEMO_PLATFORM_ADMIN: DemoAccount = {
+  role: 'SUPER_ADMIN',
+  label: 'Super Admin (platform)',
+  email: 'superadmin@careease.health',
+  password: 'Super@123',
+  department: 'Administration',
+  description: 'CareEase team: onboards and suspends hospitals. Sees no patient data.'
+};
+
+/**
+ * Creates the demo platform admin if it is missing. Run by the seeder, and by
+ * the API on its first database connection while DEMO_MODE is on, so a deployed
+ * demo has the account without anyone running the seeder against production.
+ */
+const ensureDemoPlatformAdmin = async (): Promise<void> => {
+  const { email, password, department, role } = DEMO_PLATFORM_ADMIN;
+  if (await User.exists({ tenantId: PLATFORM_TENANT_ID, email })) return;
+  await User.create({
+    firstName: 'CareEase',
+    lastName: 'Super Admin',
+    email,
+    phone: '0000000000',
+    password,
+    department,
+    designation: 'Platform administrator',
+    roles: [role],
+    tenantId: PLATFORM_TENANT_ID,
+    status: 'ACTIVE'
+  }).catch((error: { code?: number }) => {
+    if (error.code !== 11000) throw error; // another instance created it first
+  });
+};
+
+export { DEMO_TENANT_ID, DEMO_ACCOUNTS, DEMO_PLATFORM_ADMIN, ensureDemoPlatformAdmin };

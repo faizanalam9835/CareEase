@@ -7,6 +7,7 @@ import { asApiError } from '../../services/api';
 import { refId } from '../../types';
 import type {
   Appointment,
+  AppointmentStatus,
   AppointmentType,
   AvailabilitySlot,
   Meta,
@@ -26,6 +27,8 @@ interface AppointmentFormState {
   appointmentType: AppointmentType;
   reason: string;
   symptoms: string;
+  status: AppointmentStatus;
+  cancellationReason: string;
 }
 
 type FormErrors = Record<string, string | undefined>;
@@ -36,6 +39,8 @@ interface AppointmentFormProps {
   onSaved: () => void;
   appointment: Appointment | null;
   meta: Meta;
+  /** Only the status can change (nurses); the booking details are read-only. */
+  statusOnly?: boolean;
 }
 
 const BLANK: AppointmentFormState = {
@@ -46,10 +51,12 @@ const BLANK: AppointmentFormState = {
   durationMinutes: 30,
   appointmentType: 'OPD',
   reason: '',
-  symptoms: ''
+  symptoms: '',
+  status: 'Scheduled',
+  cancellationReason: ''
 };
 
-const AppointmentForm = ({ open, onClose, onSaved, appointment, meta }: AppointmentFormProps) => {
+const AppointmentForm = ({ open, onClose, onSaved, appointment, meta, statusOnly = false }: AppointmentFormProps) => {
   const isEdit = Boolean(appointment);
 
   const [form, setForm] = useState<AppointmentFormState>(BLANK);
@@ -73,7 +80,9 @@ const AppointmentForm = ({ open, onClose, onSaved, appointment, meta }: Appointm
             durationMinutes: appointment.durationMinutes || 30,
             appointmentType: appointment.appointmentType || 'OPD',
             reason: appointment.reason || '',
-            symptoms: (appointment.symptoms || []).join(', ')
+            symptoms: (appointment.symptoms || []).join(', '),
+            status: appointment.status,
+            cancellationReason: ''
           }
         : BLANK
     );
@@ -140,6 +149,10 @@ const AppointmentForm = ({ open, onClose, onSaved, appointment, meta }: Appointm
     if (!form.appointmentDate) next.appointmentDate = 'Choose a date';
     if (!form.appointmentTime) next.appointmentTime = 'Choose a time';
     if (!form.reason.trim()) next.reason = 'Give a reason for the visit';
+    const statusChanged = Boolean(appointment) && form.status !== appointment?.status;
+    if (statusChanged && form.status === 'Cancelled' && !form.cancellationReason.trim()) {
+      next.cancellationReason = 'Say why it is being cancelled';
+    }
 
     setErrors(next);
     if (Object.keys(next).length) {
@@ -147,8 +160,9 @@ const AppointmentForm = ({ open, onClose, onSaved, appointment, meta }: Appointm
       return;
     }
 
+    const { status, cancellationReason, ...details } = form;
     const payload = {
-      ...form,
+      ...details,
       symptoms: form.symptoms
         .split(',')
         .map((item) => item.trim())
@@ -158,10 +172,18 @@ const AppointmentForm = ({ open, onClose, onSaved, appointment, meta }: Appointm
 
     setSaving(true);
     try {
-      const result = appointment
-        ? await appointmentService.update(appointment._id, payload)
-        : await appointmentService.create(payload);
-      toast.success(result.message || 'Saved');
+      if (!appointment) {
+        toast.success((await appointmentService.create(payload)).message || 'Saved');
+      } else {
+        if (!statusOnly) await appointmentService.update(appointment._id, payload);
+        if (statusChanged) {
+          await appointmentService.setStatus(appointment._id, {
+            status,
+            ...(status === 'Cancelled' && { cancellationReason: cancellationReason.trim() })
+          });
+        }
+        toast.success('Appointment updated');
+      }
       onSaved();
       onClose();
     } catch (caught) {
@@ -198,6 +220,28 @@ const AppointmentForm = ({ open, onClose, onSaved, appointment, meta }: Appointm
       }
     >
       <form onSubmit={submit} className="space-y-5" noValidate>
+        {isEdit && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Status"
+              value={form.status}
+              onChange={(event) => set('status', event.target.value as AppointmentStatus)}
+              options={meta.appointmentStatuses}
+            />
+            {form.status === 'Cancelled' && form.status !== appointment?.status && (
+              <Input
+                label="Why is it being cancelled?"
+                required
+                placeholder="Patient asked to reschedule"
+                value={form.cancellationReason}
+                error={errors.cancellationReason}
+                onChange={(event) => set('cancellationReason', event.target.value)}
+              />
+            )}
+          </div>
+        )}
+
+        <fieldset disabled={statusOnly} className="space-y-5 disabled:opacity-60">
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
             label="Patient"
@@ -356,6 +400,7 @@ const AppointmentForm = ({ open, onClose, onSaved, appointment, meta }: Appointm
           error={errors.reason}
           onChange={(event) => set('reason', event.target.value)}
         />
+        </fieldset>
       </form>
     </Modal>
   );

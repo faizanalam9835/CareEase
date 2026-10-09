@@ -1,7 +1,13 @@
 // Single source of truth for the enumerations shared by models, seed data,
 // validation and the API responses the frontend renders its dropdowns from.
 
+// Roles a hospital can give its own staff.
 const ROLES = ['HOSPITAL_ADMIN', 'DOCTOR', 'NURSE', 'PHARMACIST', 'RECEPTIONIST'] as const;
+
+// The CareEase team. Lives outside every hospital (PLATFORM_TENANT_ID) and only
+// reaches /api/platform, so it can onboard tenants but never read patient data.
+const PLATFORM_ROLE = 'SUPER_ADMIN' as const;
+const PLATFORM_TENANT_ID = 'TPLATFORM';
 
 const DEPARTMENTS = [
   'Cardiology',
@@ -67,6 +73,8 @@ const CROSS_DEPARTMENT_ROLES: readonly Role[] = ['HOSPITAL_ADMIN', 'RECEPTIONIST
 
 export {
   ROLES,
+  PLATFORM_ROLE,
+  PLATFORM_TENANT_ID,
   DEPARTMENTS,
   CLINICAL_DEPARTMENTS,
   BLOOD_GROUPS,
@@ -87,7 +95,7 @@ export {
   CROSS_DEPARTMENT_ROLES
 };
 
-export type Role = (typeof ROLES)[number];
+export type Role = (typeof ROLES)[number] | typeof PLATFORM_ROLE;
 export type Department = (typeof DEPARTMENTS)[number];
 export type BloodGroup = (typeof BLOOD_GROUPS)[number];
 export type Gender = (typeof GENDERS)[number];
